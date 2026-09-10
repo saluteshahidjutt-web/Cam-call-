@@ -28,8 +28,8 @@ export const getPublicAppBaseUrl = (): string => {
     return PUBLIC_APP_ORIGIN;
   }
 
-  // 3. If already on public preview or custom domain
-  if (origin.includes('ais-pre-')) {
+  // 3. If running on Netlify, Vercel, or custom production domain
+  if (origin && !origin.includes('ais-dev-')) {
     return origin;
   }
 

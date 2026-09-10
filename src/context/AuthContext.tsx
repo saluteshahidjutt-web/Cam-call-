@@ -30,6 +30,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginAsGuest: (guestName?: string) => Promise<void>;
   signup: (email: string, pass: string, displayName: string, username: string, photoURL?: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -213,6 +214,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginAsGuest = async (customName?: string) => {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const guestUsername = `guest_${Date.now().toString().slice(-4)}${randomSuffix}`;
+    const guestEmail = `${guestUsername}@quickaccess.local`;
+    const guestPassword = `GuestP@ss${Math.random().toString(36).slice(2, 8)}123`;
+    const guestDisplayName = customName?.trim() || `Guest ${randomSuffix}`;
+
+    const res = await createUserWithEmailAndPassword(auth, guestEmail, guestPassword);
+    const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${guestUsername}`;
+
+    await updateProfile(res.user, {
+      displayName: guestDisplayName,
+      photoURL: defaultAvatar,
+    }).catch(() => {});
+
+    const newProfile: UserProfile = {
+      uid: res.user.uid,
+      email: guestEmail,
+      displayName: guestDisplayName,
+      username: guestUsername,
+      usernameLower: guestUsername.toLowerCase(),
+      photoURL: defaultAvatar,
+      bio: 'Joined via Quick Call Access',
+      isOnline: true,
+      lastSeen: Date.now(),
+      createdAt: Date.now(),
+    };
+
+    await setDoc(doc(db, 'users', res.user.uid), newProfile);
+    setProfile(newProfile);
+  };
+
   const login = async (email: string, pass: string) => {
     const res = await signInWithEmailAndPassword(auth, email, pass);
     const userRef = doc(db, 'users', res.user.uid);
@@ -267,6 +300,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         login,
         loginWithGoogle,
+        loginAsGuest,
         signup,
         logout,
         resetPassword,

@@ -3,15 +3,16 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import rawConfig from '../../firebase-applet-config.json';
 
-// Fallback values from provisioned Firebase project if config file or env is missing on Netlify/Vercel
-const DEFAULT_CONFIG = {
-  projectId: "sonic-program-ft8c4",
-  appId: "1:713197969311:web:455f75543b96a4f24527aa",
-  apiKey: "AIzaSyBxTSuGCeRfxiLqsZNwrHeVsY9Rlmi3q6g",
-  authDomain: "sonic-program-ft8c4.firebaseapp.com",
-  firestoreDatabaseId: "ai-studio-1to1videocalling-6b1115ad-f9fc-4674-8c09-584f2892e381",
-  storageBucket: "sonic-program-ft8c4.firebasestorage.app",
-  messagingSenderId: "713197969311",
+// Fallback values from user's custom Firebase project
+export const DEFAULT_CONFIG = {
+  projectId: "callcam-a7ea0",
+  appId: "1:1033574410578:web:e8c7483b109953635f728b",
+  apiKey: "AIzaSyDVD7fOGn8wXrfA2URUqKtHg15xtB3Fx6k",
+  authDomain: "callcam-a7ea0.firebaseapp.com",
+  firestoreDatabaseId: "(default)",
+  storageBucket: "callcam-a7ea0.firebasestorage.app",
+  messagingSenderId: "1033574410578",
+  measurementId: "G-44LH83WPCS",
 };
 
 let loadedRawConfig = DEFAULT_CONFIG;
@@ -24,7 +25,7 @@ try {
   // Use DEFAULT_CONFIG
 }
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || loadedRawConfig.apiKey,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || loadedRawConfig.authDomain,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || loadedRawConfig.projectId,

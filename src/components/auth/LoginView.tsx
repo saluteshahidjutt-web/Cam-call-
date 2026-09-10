@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Video, Mail, Lock, Eye, EyeOff, AlertCircle, Sun, Moon } from 'lucide-react';
+import { Video, Mail, Lock, Eye, EyeOff, AlertCircle, Sun, Moon, Sparkles } from 'lucide-react';
+import { DomainAuthHelp } from './DomainAuthHelp';
 
 interface LoginViewProps {
   onSwitchToSignUp: () => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, loginAsGuest } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
 
   const [email, setEmail] = useState('');
@@ -16,6 +17,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
+  const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
 
@@ -25,8 +28,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('pending_call_id'))
   );
 
+  const handleGuestSignIn = async () => {
+    setError(null);
+    setGuestLoading(true);
+    try {
+      await loginAsGuest();
+    } catch (err: unknown) {
+      const e = err as Error;
+      setError(e.message || 'Failed to sign in as guest.');
+    } finally {
+      setGuestLoading(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setError(null);
+    setIsUnauthorizedDomain(false);
     setGoogleLoading(true);
     try {
       await loginWithGoogle();
@@ -34,7 +51,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
       const e = err as Error;
       let msg = 'Google sign in failed.';
       if (e.message?.includes('unauthorized-domain')) {
-        msg = 'Google OAuth is not authorized on this domain. Please use Email & Password below to sign in directly!';
+        setIsUnauthorizedDomain(true);
+        msg = 'Google OAuth is not authorized on this domain. Use Email & Password below or click Join as Guest!';
       } else if (e.message?.includes('popup-closed-by-user')) {
         msg = 'Sign in popup was closed. Please try again.';
       } else if (e.message) {
@@ -112,7 +130,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
             </div>
           )}
 
-          {error && (
+          {/* Domain Authorization Help if Google Sign-In is blocked on Netlify */}
+          {isUnauthorizedDomain && (
+            <DomainAuthHelp
+              onQuickGuestSignIn={handleGuestSignIn}
+              guestLoading={guestLoading}
+            />
+          )}
+
+          {error && !isUnauthorizedDomain && (
             <div className="mb-5 p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
@@ -124,7 +150,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
             id="google-login-button"
             type="button"
             onClick={handleGoogleSignIn}
-            disabled={loading || googleLoading}
+            disabled={loading || googleLoading || guestLoading}
             className="w-full py-2.5 px-4 bg-white dark:bg-zinc-800/90 hover:bg-zinc-50 dark:hover:bg-zinc-750 border border-black/10 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100 text-xs font-semibold rounded-2xl transition-all flex items-center justify-center gap-2.5 shadow-xs disabled:opacity-50"
           >
             {googleLoading ? (
@@ -150,6 +176,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
               </svg>
             )}
             <span>Sign in with Google</span>
+          </button>
+
+          {/* 1-Click Guest Sign In Option */}
+          <button
+            id="guest-login-button"
+            type="button"
+            onClick={handleGuestSignIn}
+            disabled={loading || googleLoading || guestLoading}
+            className="mt-2.5 w-full py-2.5 px-4 bg-black/[0.03] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] border border-black/10 dark:border-white/10 text-zinc-700 dark:text-zinc-200 text-xs font-semibold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+          >
+            {guestLoading ? (
+              <div className="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            )}
+            <span>⚡ Join as Guest (1-Click Instant Access)</span>
           </button>
 
           <div className="relative my-5">
