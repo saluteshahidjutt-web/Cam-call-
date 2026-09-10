@@ -31,6 +31,16 @@ function MainApp() {
   const [isInstantCallModalOpen, setIsInstantCallModalOpen] = useState(false);
   const [initialCallIdFromUrl, setInitialCallIdFromUrl] = useState<string | undefined>(undefined);
 
+  const [forceLoaded, setForceLoaded] = useState(false);
+
+  // Safety fallback: Release loading screen after 1.2 seconds max
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setForceLoaded(true);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Check URL for direct #call=ID or ?call=ID to join
   React.useEffect(() => {
     const handleCheckUrlForCall = () => {
@@ -62,7 +72,7 @@ function MainApp() {
     return () => window.removeEventListener('hashchange', handleCheckUrlForCall);
   }, [user]);
 
-  if (loading) {
+  if (loading && !forceLoaded) {
     return (
       <div className="h-screen w-screen bg-[#f0f2f5] dark:bg-[#0c1317] flex flex-col items-center justify-center text-[#111b21] dark:text-[#e9edef] transition-colors">
         <div className="relative mb-4">

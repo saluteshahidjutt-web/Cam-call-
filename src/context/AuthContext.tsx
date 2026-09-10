@@ -48,32 +48,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Monitor Auth state & User Profile in Firestore
   useEffect(() => {
     let unsubscribeDoc: (() => void) | null = null;
+    let isMounted = true;
+
+    // Safety timeout: Never keep the user waiting more than 1.5 seconds on initial boot
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        setLoading(false);
+      }
+    }, 1500);
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      if (!isMounted) return;
       setUser(currentUser);
 
       if (currentUser) {
+        const cleanName =
+          currentUser.displayName ||
+          (currentUser.isAnonymous ? 'Guest User' : currentUser.email?.split('@')[0] || 'User');
+        const cleanUser =
+          cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '') ||
+          `user_${currentUser.uid.slice(0, 5)}`;
+
+        const defaultFallbackProfile: UserProfile = {
+          uid: currentUser.uid,
+          email: currentUser.email || '',
+          displayName: cleanName,
+          username: cleanUser,
+          usernameLower: cleanUser.toLowerCase(),
+          photoURL:
+            currentUser.photoURL ||
+            `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.uid}`,
+          bio: 'Hey there! I am using Call CAM.',
+          isOnline: true,
+          lastSeen: Date.now(),
+          createdAt: Date.now(),
+        };
+
         const userRef = doc(db, 'users', currentUser.uid);
 
         // Listen to live user profile
-        unsubscribeDoc = onSnapshot(userRef, (snapshot) => {
-          if (snapshot.exists()) {
-            setProfile(snapshot.data() as UserProfile);
-          } else {
-            setProfile(null);
+        unsubscribeDoc = onSnapshot(
+          userRef,
+          (snapshot) => {
+            if (!isMounted) return;
+            if (snapshot.exists()) {
+              setProfile(snapshot.data() as UserProfile);
+            } else {
+              // Doc does not exist yet in Firestore, use fallback and persist it
+              setProfile(defaultFallbackProfile);
+              setDoc(userRef, defaultFallbackProfile, { merge: true }).catch(() => {});
+            }
+            setLoading(false);
+          },
+          (error) => {
+            console.warn('Firestore user profile snapshot error:', error);
+            if (!isMounted) return;
+            // On Firestore error/offline, keep the fallback profile so user can proceed
+            setProfile((prev) => prev || defaultFallbackProfile);
+            setLoading(false);
           }
-          setLoading(false);
-        }, () => {
-          setLoading(false);
-        });
+        );
 
-        // Update online status
-        await updateDoc(userRef, {
+        // Update online status in background
+        updateDoc(userRef, {
           isOnline: true,
           lastSeen: Date.now(),
-        }).catch(() => {
-          // If doc doesn't exist yet (during registration), will be handled in signup
-        });
+        }).catch(() => {});
       } else {
         if (unsubscribeDoc) {
           unsubscribeDoc();
@@ -85,6 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
       unsubscribeAuth();
       if (unsubscribeDoc) unsubscribeDoc();
     };
