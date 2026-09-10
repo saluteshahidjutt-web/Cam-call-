@@ -44,7 +44,7 @@ export interface Message {
   seenAt?: number;
 }
 
-export type CallStatus = 'ringing' | 'connected' | 'rejected' | 'ended' | 'missed';
+export type CallStatus = 'ringing' | 'connected' | 'rejected' | 'ended' | 'missed' | 'waiting';
 
 export interface CallSession {
   id: string;
@@ -56,6 +56,8 @@ export interface CallSession {
   calleePhoto?: string;
   type: 'video';
   status: CallStatus;
+  isLinkCall?: boolean;
+  roomCode?: string;
   offer?: {
     type: RTCSdpType;
     sdp: string;

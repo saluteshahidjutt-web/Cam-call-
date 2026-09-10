@@ -8,12 +8,13 @@ import { ChatScreen } from './components/chat/ChatScreen';
 import { UserSearchModal } from './components/chat/UserSearchModal';
 import { IncomingCallModal } from './components/call/IncomingCallModal';
 import { VideoCallScreen } from './components/call/VideoCallScreen';
+import { InstantCallModal } from './components/call/InstantCallModal';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { SettingsModal } from './components/profile/SettingsModal';
 import { Conversation, UserProfile } from './types';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
-import { MessageSquare, Video, ShieldCheck, Zap } from 'lucide-react';
+import { MessageSquare, Video, ShieldCheck, Zap, PhoneCall } from 'lucide-react';
 
 function MainApp() {
   const { user, profile, loading } = useAuth();
@@ -25,6 +26,28 @@ function MainApp() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isInstantCallModalOpen, setIsInstantCallModalOpen] = useState(false);
+  const [initialCallIdFromUrl, setInitialCallIdFromUrl] = useState<string | undefined>(undefined);
+
+  // Check URL for direct #call=ID or ?call=ID to join
+  React.useEffect(() => {
+    const handleCheckUrlForCall = () => {
+      const hash = window.location.hash;
+      const params = new URLSearchParams(window.location.search);
+      let callId = params.get('call');
+      if (!callId && hash.includes('#call=')) {
+        callId = hash.split('#call=')[1].split('&')[0];
+      }
+      if (callId) {
+        setInitialCallIdFromUrl(callId);
+        setIsInstantCallModalOpen(true);
+      }
+    };
+
+    handleCheckUrlForCall();
+    window.addEventListener('hashchange', handleCheckUrlForCall);
+    return () => window.removeEventListener('hashchange', handleCheckUrlForCall);
+  }, []);
 
   // Loading indicator for auth check
   if (loading) {
@@ -121,6 +144,7 @@ function MainApp() {
           onOpenNewChatModal={() => setIsSearchModalOpen(true)}
           onOpenProfile={() => setIsProfileModalOpen(true)}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenInstantCall={() => setIsInstantCallModalOpen(true)}
         />
       </div>
 
@@ -145,19 +169,30 @@ function MainApp() {
               <Video className="w-8 h-8" />
             </div>
 
-            <h2 className="text-xl font-bold text-white mb-2">1-to-1 Video & Messaging</h2>
-            <p className="text-sm text-zinc-400 max-w-sm leading-relaxed mb-6">
-              Select a conversation from the sidebar or start a new 1-to-1 chat to exchange messages and make real-time WebRTC video calls.
+            <h2 className="text-xl font-bold text-white mb-2">Direct 1-to-1 Video Calling & Chat</h2>
+            <p className="text-sm text-zinc-400 max-w-md leading-relaxed mb-6">
+              Call any friend instantly via a shareable video link or search for users by their @username for private encrypted messaging and video calls.
             </p>
 
-            <button
-              id="start-chat-welcome-btn"
-              onClick={() => setIsSearchModalOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-950/50 flex items-center gap-2 transition-all"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>Start New Conversation</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                id="instant-call-welcome-btn"
+                onClick={() => setIsInstantCallModalOpen(true)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-950/50 flex items-center gap-2 transition-all"
+              >
+                <Video className="w-4 h-4" />
+                <span>Instant Call Link</span>
+              </button>
+
+              <button
+                id="start-chat-welcome-btn"
+                onClick={() => setIsSearchModalOpen(true)}
+                className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-semibold border border-zinc-700/60 shadow-sm flex items-center gap-2 transition-all"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Search Contacts / New Chat</span>
+              </button>
+            </div>
 
             <div className="flex items-center gap-6 mt-12 text-zinc-400 text-xs">
               <div className="flex items-center gap-1.5">
@@ -178,6 +213,15 @@ function MainApp() {
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
         onSelectUser={handleSelectUserToChat}
+      />
+
+      <InstantCallModal
+        isOpen={isInstantCallModalOpen}
+        onClose={() => {
+          setIsInstantCallModalOpen(false);
+          setInitialCallIdFromUrl(undefined);
+        }}
+        initialCallId={initialCallIdFromUrl}
       />
 
       <ProfileModal

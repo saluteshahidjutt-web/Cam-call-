@@ -74,16 +74,6 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
     }
   };
 
-  const handleFillDemo = (name: string, uname: string, mail: string) => {
-    setDisplayName(name);
-    setUsername(uname);
-    setEmail(mail);
-    setPassword('Test123456!');
-    setSelectedSeed(uname);
-    setUsernameStatus('Available');
-    setError(null);
-  };
-
   const currentAvatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${selectedSeed}`;
 
   return (
@@ -238,25 +228,11 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
             </button>
           </form>
 
-          {/* Quick presets */}
-          <div className="mt-5 pt-4 border-t border-zinc-800/80">
-            <p className="text-xs text-zinc-400 mb-2 font-medium">Quick prefill demo accounts:</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleFillDemo('Alice Johnson', 'alice', 'alice@test.com')}
-                className="px-2.5 py-1.5 rounded-lg bg-zinc-800/70 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/50 transition-colors text-left truncate"
-              >
-                + Fill Alice (@alice)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleFillDemo('Bob Martinez', 'bob', 'bob@test.com')}
-                className="px-2.5 py-1.5 rounded-lg bg-zinc-800/70 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/50 transition-colors text-left truncate"
-              >
-                + Fill Bob (@bob)
-              </button>
-            </div>
+          {/* Privacy Note */}
+          <div className="mt-6 pt-4 border-t border-zinc-800/80 text-center">
+            <p className="text-[11px] text-zinc-500">
+              Your video and audio streams are directly peer-to-peer and never saved on any server.
+            </p>
           </div>
         </div>
 

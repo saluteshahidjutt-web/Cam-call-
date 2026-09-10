@@ -195,17 +195,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             )}
           </div>
 
-          {/* Testing Guide */}
+          {/* Calling Guide */}
           <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800/80">
             <div className="flex items-center gap-2 mb-2 text-zinc-300">
               <HelpCircle className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs font-semibold">How to test 2 users calling each other:</span>
+              <span className="text-xs font-semibold">How to start a video call:</span>
             </div>
             <ol className="text-[11px] text-zinc-400 space-y-1.5 list-decimal pl-4 leading-relaxed">
-              <li>Open this app in two browser windows (e.g. standard window + Incognito window).</li>
-              <li>Sign in as <strong>Alice</strong> (@alice) in Window 1 and <strong>Bob</strong> (@bob) in Window 2.</li>
-              <li>In Window 1, click <strong>+ (New Chat)</strong>, search for <strong>@bob</strong>, and click the <strong>Video</strong> icon.</li>
-              <li>Window 2 will immediately ring with an incoming call screen! Click <strong>Accept</strong>.</li>
+              <li>Tap <strong>Instant Call Link</strong> to create a shareable video link (send directly to WhatsApp).</li>
+              <li>Or tap <strong>New Chat / Search</strong>, enter any user's name or @username, and tap the <strong>Video</strong> icon.</li>
+              <li>When the other person accepts or opens the link, high-definition video connects peer-to-peer.</li>
             </ol>
           </div>
 

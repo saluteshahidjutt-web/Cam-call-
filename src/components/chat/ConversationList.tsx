@@ -20,6 +20,7 @@ interface ConversationListProps {
   onOpenNewChatModal: () => void;
   onOpenProfile: () => void;
   onOpenSettings: () => void;
+  onOpenInstantCall: () => void;
 }
 
 function formatLastMessageTime(timestamp?: number): string {
@@ -49,6 +50,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   onOpenNewChatModal,
   onOpenProfile,
   onOpenSettings,
+  onOpenInstantCall,
 }) => {
   const { user, profile } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -168,12 +170,20 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
         <div className="flex items-center gap-1">
           <button
+            id="instant-call-button"
+            onClick={onOpenInstantCall}
+            className="p-2 rounded-xl text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40 border border-emerald-500/30 transition-colors"
+            title="Instant Video Call Link"
+          >
+            <Video className="w-5 h-5" />
+          </button>
+          <button
             id="new-chat-button"
             onClick={onOpenNewChatModal}
             className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
             title="Start new conversation"
           >
-            <MessageSquarePlus className="w-5 h-5 text-emerald-400" />
+            <MessageSquarePlus className="w-5 h-5" />
           </button>
           <button
             id="profile-button"
@@ -187,11 +197,34 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             id="settings-button"
             onClick={onOpenSettings}
             className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            title="Settings & Audio/Video Test"
+            title="Settings & Help"
           >
             <Settings className="w-5 h-5" />
           </button>
         </div>
+      </div>
+
+      {/* Quick Instant Call Banner */}
+      <div className="px-3 pt-3 pb-1">
+        <button
+          onClick={onOpenInstantCall}
+          className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-950/60 to-zinc-900 border border-emerald-500/40 hover:border-emerald-500/70 text-left transition-all group flex items-center justify-between shadow-sm"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center ring-1 ring-emerald-500/30 group-hover:scale-105 transition-transform">
+              <Video className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white group-hover:text-emerald-300 transition-colors">
+                Instant Video Call
+              </p>
+              <p className="text-[10px] text-zinc-400">Share link via WhatsApp or Code</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-600/30">
+            Start / Join
+          </span>
+        </button>
       </div>
 
       {/* Search Conversations */}

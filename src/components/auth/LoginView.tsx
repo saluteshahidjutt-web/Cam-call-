@@ -42,12 +42,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
     }
   };
 
-  const handleFillDemo = (userEmail: string, userPass: string) => {
-    setEmail(userEmail);
-    setPassword(userPass);
-    setError(null);
-  };
-
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-zinc-950 text-zinc-100">
       <div className="w-full max-w-md">
@@ -56,9 +50,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30 mb-4 shadow-lg shadow-emerald-950/50">
             <Video className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Welcome back</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Direct 1-to-1 Video Calling</h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Sign in to start private 1-to-1 video calls and messaging
+            Sign in to start private HD video calls & instant messaging
           </p>
         </div>
 
@@ -138,27 +132,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
             </button>
           </form>
 
-          {/* Quick Dual-Browser Testing Helper */}
-          <div className="mt-6 pt-5 border-t border-zinc-800/80">
-            <p className="text-xs text-zinc-400 mb-2 font-medium">Quick testing between 2 tabs/devices:</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleFillDemo('alice@test.com', 'Test123456!')}
-                className="px-2.5 py-1.5 rounded-lg bg-zinc-800/70 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/50 transition-colors text-left truncate"
-                title="Fill Alice (alice@test.com)"
-              >
-                👤 Alice (Tab 1)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleFillDemo('bob@test.com', 'Test123456!')}
-                className="px-2.5 py-1.5 rounded-lg bg-zinc-800/70 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/50 transition-colors text-left truncate"
-                title="Fill Bob (bob@test.com)"
-              >
-                👤 Bob (Tab 2)
-              </button>
-            </div>
+          {/* Security Guarantee Note */}
+          <div className="mt-6 pt-4 border-t border-zinc-800/80 text-center">
+            <p className="text-[11px] text-zinc-500 flex items-center justify-center gap-1.5">
+              <span>🔒 Peer-to-Peer WebRTC</span>
+              <span>•</span>
+              <span>HD Video & Audio</span>
+              <span>•</span>
+              <span>Zero-Storage Calls</span>
+            </p>
           </div>
         </div>
 

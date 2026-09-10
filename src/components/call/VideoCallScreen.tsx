@@ -13,6 +13,9 @@ import {
   X,
   Maximize2,
   Minimize2,
+  Copy,
+  Check,
+  Share2,
 } from 'lucide-react';
 
 function formatDuration(seconds: number): string {
@@ -43,6 +46,22 @@ export const VideoCallScreen: React.FC = () => {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPipSwapped, setIsPipSwapped] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    if (!activeCall) return;
+    const link = `${window.location.origin}${window.location.pathname}#call=${activeCall.id}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!activeCall) return;
+    const link = `${window.location.origin}${window.location.pathname}#call=${activeCall.id}`;
+    const text = encodeURIComponent(`Join my private 1-to-1 video call now: ${link}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
 
   // Bind local stream to video
   useEffect(() => {
@@ -86,6 +105,44 @@ export const VideoCallScreen: React.FC = () => {
             muted={isPipSwapped}
             className={`w-full h-full object-cover ${isPipSwapped ? 'scale-x-[-1]' : ''}`}
           />
+        ) : callStatus === 'waiting' ? (
+          <div className="flex flex-col items-center justify-center p-6 text-center max-w-md animate-in fade-in duration-300 z-10">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30 flex items-center justify-center mb-4 shadow-xl shadow-emerald-950/50 animate-pulse">
+              <VideoIcon className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1.5">Waiting for your friend to join...</h2>
+            <p className="text-xs text-zinc-400 mb-5 leading-relaxed">
+              Your camera & microphone are live. Share this invite link with the person you want to call:
+            </p>
+
+            {/* Share Card */}
+            <div className="w-full bg-zinc-950/90 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3 shadow-2xl backdrop-blur-md">
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={`${window.location.origin}${window.location.pathname}#call=${activeCall.id}`}
+                  className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 font-mono select-all focus:outline-none truncate"
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleShareWhatsApp}
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-md shadow-emerald-950/50"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Share Link on WhatsApp</span>
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
             <div className="relative mb-6">

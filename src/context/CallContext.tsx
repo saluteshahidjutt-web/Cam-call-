@@ -9,6 +9,7 @@ import {
   where,
   addDoc,
   getDocs,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from './AuthContext';
@@ -28,6 +29,8 @@ interface CallContextType {
   callDuration: number;
   error: string | null;
   startCall: (callee: UserProfile) => Promise<void>;
+  createCallLink: () => Promise<string>;
+  joinCallWithLink: (callId: string) => Promise<void>;
   acceptCall: () => Promise<void>;
   rejectCall: () => Promise<void>;
   endCall: () => Promise<void>;
@@ -442,6 +445,267 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
+  // CREATE INSTANT CALL ROOM (Caller creates link & waits)
+  const createCallLink = async (): Promise<string> => {
+    if (!user || !profile) throw new Error('User must be logged in to start a call');
+    setError(null);
+
+    // 1. Get media stream
+    const { stream, error: mediaError } = await getLocalMediaStream({
+      video: true,
+      audio: true,
+      facingMode: isFrontCamera ? 'user' : 'environment',
+    });
+
+    if (mediaError) {
+      setError(mediaError);
+      if (!stream) throw new Error(mediaError);
+    }
+
+    setLocalStream(stream);
+    localStreamRef.current = stream;
+
+    // 2. Initialize Peer Connection
+    const pc = new RTCPeerConnection(RTC_CONFIG);
+    peerConnectionRef.current = pc;
+
+    const remoteMediaStream = new MediaStream();
+    setRemoteStream(remoteMediaStream);
+
+    stream?.getTracks().forEach((track) => {
+      pc.addTrack(track, stream);
+    });
+
+    pc.ontrack = (event) => {
+      event.streams[0]?.getTracks().forEach((track) => {
+        remoteMediaStream.addTrack(track);
+      });
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+        setError('Call connection interrupted.');
+      }
+    };
+
+    // 3. Create unique room code
+    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const callDocRef = doc(collection(db, 'calls'));
+    const callId = callDocRef.id;
+    activeCallDocRef.current = callId;
+
+    const callData: CallSession = {
+      id: callId,
+      callerId: user.uid,
+      callerName: profile.displayName || profile.username,
+      callerPhoto: profile.photoURL,
+      calleeId: '',
+      calleeName: 'Invited Guest',
+      calleePhoto: '',
+      type: 'video',
+      status: 'waiting',
+      isLinkCall: true,
+      roomCode: roomCode,
+      createdAt: Date.now(),
+    };
+
+    setActiveCall(callData);
+    setCallStatus('waiting');
+
+    // 4. Candidate exchange
+    const callerCandidatesCol = collection(db, 'calls', callId, 'callerCandidates');
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        addDoc(callerCandidatesCol, event.candidate.toJSON()).catch(() => {});
+      }
+    };
+
+    // 5. Create Offer
+    const offerDescription = await pc.createOffer();
+    await pc.setLocalDescription(offerDescription);
+
+    const callPayload = {
+      ...callData,
+      offer: {
+        type: offerDescription.type,
+        sdp: offerDescription.sdp,
+      },
+    };
+
+    await setDoc(callDocRef, callPayload);
+
+    // 6. Listen for Invitee answer
+    const unsubCall = onSnapshot(callDocRef, async (snapshot) => {
+      const data = snapshot.data() as CallSession | undefined;
+      if (!data) return;
+
+      if (data.status === 'rejected') {
+        cleanupCall(true);
+        setError('Call was cancelled.');
+        unsubCall();
+      } else if (data.status === 'ended') {
+        cleanupCall(true);
+        unsubCall();
+      } else if (data.status === 'connected' && data.answer && !pc.currentRemoteDescription) {
+        soundManager.stopRingtone();
+        soundManager.playConnectedTone();
+        const answerDescription = new RTCSessionDescription(data.answer);
+        await pc.setRemoteDescription(answerDescription);
+        setActiveCall((prev) => (prev ? { ...prev, ...data } : data));
+        setCallStatus('connected');
+      }
+    });
+
+    // 7. Listen for Callee candidates
+    const calleeCandidatesCol = collection(db, 'calls', callId, 'calleeCandidates');
+    const unsubCandidates = onSnapshot(calleeCandidatesCol, (snapshot) => {
+      snapshot.docChanges().forEach(async (change) => {
+        if (change.type === 'added') {
+          const candidateData = change.doc.data() as IceCandidatePayload;
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidateData));
+          } catch {}
+        }
+      });
+    });
+
+    const prevPcClose = pc.close.bind(pc);
+    pc.close = () => {
+      unsubCall();
+      unsubCandidates();
+      prevPcClose();
+    };
+
+    return callId;
+  };
+
+  // JOIN INSTANT CALL ROOM (Callee joins using callId)
+  const joinCallWithLink = async (callId: string) => {
+    if (!user || !profile) throw new Error('User must be logged in to join a call');
+    soundManager.stopRingtone();
+    setError(null);
+
+    // 1. Fetch Call doc
+    const callDocRef = doc(db, 'calls', callId);
+    const callSnap = await getDoc(callDocRef);
+    if (!callSnap.exists()) {
+      throw new Error('Call session not found or link has expired.');
+    }
+    const callData = { id: callSnap.id, ...callSnap.data() } as CallSession;
+    if (callData.status === 'ended') {
+      throw new Error('This call has already ended.');
+    }
+
+    activeCallDocRef.current = callId;
+    setActiveCall(callData);
+    setCallStatus('connected');
+
+    // 2. Media stream
+    const { stream, error: mediaError } = await getLocalMediaStream({
+      video: true,
+      audio: true,
+      facingMode: isFrontCamera ? 'user' : 'environment',
+    });
+
+    if (mediaError) {
+      setError(mediaError);
+      if (!stream) {
+        throw new Error(mediaError);
+      }
+    }
+
+    setLocalStream(stream);
+    localStreamRef.current = stream;
+
+    // 3. Peer Connection
+    const pc = new RTCPeerConnection(RTC_CONFIG);
+    peerConnectionRef.current = pc;
+
+    const remoteMediaStream = new MediaStream();
+    setRemoteStream(remoteMediaStream);
+
+    stream?.getTracks().forEach((track) => {
+      pc.addTrack(track, stream);
+    });
+
+    pc.ontrack = (event) => {
+      event.streams[0]?.getTracks().forEach((track) => {
+        remoteMediaStream.addTrack(track);
+      });
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+        setError('Call connection interrupted.');
+      }
+    };
+
+    // 4. Callee candidates collection
+    const calleeCandidatesCol = collection(db, 'calls', callId, 'calleeCandidates');
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        addDoc(calleeCandidatesCol, event.candidate.toJSON()).catch(() => {});
+      }
+    };
+
+    // 5. Set Remote Description from Caller's Offer
+    if (callData.offer) {
+      await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+    }
+
+    // 6. Create Answer
+    const answerDescription = await pc.createAnswer();
+    await pc.setLocalDescription(answerDescription);
+
+    await updateDoc(callDocRef, {
+      calleeId: user.uid,
+      calleeName: profile.displayName || profile.username,
+      calleePhoto: profile.photoURL || '',
+      answer: {
+        type: answerDescription.type,
+        sdp: answerDescription.sdp,
+      },
+      status: 'connected',
+    });
+
+    soundManager.playConnectedTone();
+
+    // 7. Read existing caller candidates & listen
+    const callerCandidatesCol = collection(db, 'calls', callId, 'callerCandidates');
+    const existingCandidatesSnap = await getDocs(callerCandidatesCol);
+    existingCandidatesSnap.forEach(async (d) => {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(d.data() as IceCandidatePayload));
+      } catch {}
+    });
+
+    const unsubCallerCandidates = onSnapshot(callerCandidatesCol, (snapshot) => {
+      snapshot.docChanges().forEach(async (change) => {
+        if (change.type === 'added') {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(change.doc.data() as IceCandidatePayload));
+          } catch {}
+        }
+      });
+    });
+
+    // 8. Listen for end
+    const unsubCallDoc = onSnapshot(callDocRef, (snapshot) => {
+      const data = snapshot.data() as CallSession | undefined;
+      if (data && (data.status === 'ended' || data.status === 'rejected')) {
+        cleanupCall(true);
+        unsubCallDoc();
+      }
+    });
+
+    const prevPcClose = pc.close.bind(pc);
+    pc.close = () => {
+      unsubCallerCandidates();
+      unsubCallDoc();
+      prevPcClose();
+    };
+  };
+
   // REJECT CALL (Callee)
   const rejectCall = async () => {
     soundManager.stopRingtone();
@@ -541,6 +805,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         callDuration,
         error,
         startCall,
+        createCallLink,
+        joinCallWithLink,
         acceptCall,
         rejectCall,
         endCall,
