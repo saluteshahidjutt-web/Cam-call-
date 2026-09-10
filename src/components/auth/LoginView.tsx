@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Video, Mail, Lock, Eye, EyeOff, AlertCircle, Sun, Moon, Sparkles } from 'lucide-react';
-import { DomainAuthHelp } from './DomainAuthHelp';
 
 interface LoginViewProps {
   onSwitchToSignUp: () => void;
@@ -18,7 +17,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
-  const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
 
@@ -43,7 +41,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
 
   const handleGoogleSignIn = async () => {
     setError(null);
-    setIsUnauthorizedDomain(false);
     setGoogleLoading(true);
     try {
       await loginWithGoogle();
@@ -51,8 +48,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
       const e = err as Error;
       let msg = 'Google sign in failed.';
       if (e.message?.includes('unauthorized-domain')) {
-        setIsUnauthorizedDomain(true);
-        msg = 'Google OAuth is not authorized on this domain. Use Email & Password below or click Join as Guest!';
+        msg = 'Domain not authorized yet in Firebase Console > Authentication > Settings.';
+      } else if (e.message?.includes('operation-not-allowed')) {
+        msg = 'Google Sign-in is not enabled in Firebase Console.';
       } else if (e.message?.includes('popup-closed-by-user')) {
         msg = 'Sign in popup was closed. Please try again.';
       } else if (e.message) {
@@ -74,11 +72,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
     } catch (err: unknown) {
       const e = err as Error;
       let msg = 'Failed to sign in. Please check your credentials.';
-      if (e.message.includes('unauthorized-domain')) {
-        msg = 'Domain not authorized. Please try signing in with your registered email and password.';
-      } else if (e.message.includes('user-not-found') || e.message.includes('wrong-password') || e.message.includes('invalid-credential')) {
+      if (e.message?.includes('user-not-found') || e.message?.includes('wrong-password') || e.message?.includes('invalid-credential')) {
         msg = 'Invalid email or password.';
-      } else if (e.message.includes('too-many-requests')) {
+      } else if (e.message?.includes('operation-not-allowed')) {
+        msg = 'Email/Password sign in is disabled in Firebase Console.';
+      } else if (e.message?.includes('too-many-requests')) {
         msg = 'Too many attempts. Please try again in a few minutes.';
       } else if (e.message) {
         msg = e.message;
@@ -114,7 +112,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
             <Video className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[#111b21] dark:text-white">
-            WhatsApp Messenger
+            Call CAM
           </h1>
           <p className="text-xs text-zinc-500 dark:text-[#8696a0] mt-1">
             Real-time messaging, photos & peer-to-peer video calls
@@ -130,15 +128,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
             </div>
           )}
 
-          {/* Domain Authorization Help if Google Sign-In is blocked on Netlify */}
-          {isUnauthorizedDomain && (
-            <DomainAuthHelp
-              onQuickGuestSignIn={handleGuestSignIn}
-              guestLoading={guestLoading}
-            />
-          )}
-
-          {error && !isUnauthorizedDomain && (
+          {error && (
             <div className="mb-5 p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>

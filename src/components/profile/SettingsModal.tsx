@@ -109,7 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         <div className="flex items-center gap-2 mb-1">
           <h3 className="text-xl font-bold tracking-tight">Settings</h3>
           <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#00a884]/15 text-[#00a884] border border-[#00a884]/20">
-            WhatsApp
+            Call CAM
           </span>
         </div>
         <p className="text-xs text-zinc-500 dark:text-[#8696a0] mb-6">
@@ -269,11 +269,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/10">
             <div className="flex items-center gap-2 mb-2 text-zinc-800 dark:text-zinc-200">
               <HelpCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-              <span className="text-xs font-semibold">Instant WhatsApp Calling Flow:</span>
+              <span className="text-xs font-semibold">Instant Call CAM Calling Flow:</span>
             </div>
             <ol className="text-[11px] text-zinc-500 dark:text-zinc-400 space-y-1.5 list-decimal pl-4 leading-relaxed">
               <li>Tap <strong>Instant Call Link</strong> to create a private room URL.</li>
-              <li>Tap <strong>Share on WhatsApp</strong> or copy link to invite any friend.</li>
+              <li>Tap <strong>Share Link</strong> or copy link to invite any friend.</li>
               <li>When the other person opens the link, peer-to-peer WebRTC video connects in real time.</li>
             </ol>
           </div>

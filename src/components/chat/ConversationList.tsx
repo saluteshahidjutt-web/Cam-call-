@@ -214,7 +214,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         ) : (
           <div className="flex items-center justify-between py-1">
             <h1 className="text-xl font-bold tracking-normal text-white">
-              WhatsApp
+              Call CAM
             </h1>
 
             <div className="flex items-center gap-2 text-white/90">
@@ -355,7 +355,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             {loading ? (
               <div className="p-12 text-center text-zinc-400 text-xs">
                 <div className="w-6 h-6 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                Loading WhatsApp chats...
+                Loading Call CAM chats...
               </div>
             ) : filteredConversations.length === 0 ? (
               <div className="p-8 text-center text-zinc-500">
@@ -498,7 +498,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               <div className="p-3 bg-black/5 dark:bg-white/5 rounded-xl space-y-2">
                 <input
                   type="text"
-                  placeholder="Set your WhatsApp status..."
+                  placeholder="Set your Call CAM status..."
                   value={newStatusText}
                   onChange={(e) => setNewStatusText(e.target.value)}
                   className="w-full text-xs px-3 py-2 rounded-lg bg-white dark:bg-[#202c33] border border-black/10 dark:border-white/10 text-zinc-900 dark:text-white"
@@ -573,7 +573,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                   Create call link
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-[#8696a0] truncate">
-                  Share a link for your WhatsApp video or voice call
+                  Share a link for your Call CAM video or voice call
                 </p>
               </div>
             </div>

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Video, Mail, Lock, Eye, EyeOff, AlertCircle, User, AtSign, Check, X, Sun, Moon, Sparkles } from 'lucide-react';
-import { DomainAuthHelp } from './DomainAuthHelp';
 
 interface SignUpViewProps {
   onSwitchToLogin: () => void;
@@ -23,7 +22,6 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
-  const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<string | null>(null);
 
@@ -46,9 +44,19 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
     }
   };
 
-  const handleUsernameChange = async (val: string) => {
-    const clean = val.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-    setUsername(clean);
+  const handleDisplayNameChange = (val: string) => {
+    setDisplayName(val);
+    // Auto-suggest username if user hasn't explicitly customized it yet
+    if (!username || username === displayName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')) {
+      const suggested = val.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (suggested.length >= 3) {
+        setUsername(suggested);
+        handleUsernameCheck(suggested);
+      }
+    }
+  };
+
+  const handleUsernameCheck = async (clean: string) => {
     if (!clean) {
       setUsernameStatus(null);
       return;
@@ -65,9 +73,14 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
     }
   };
 
+  const handleUsernameChange = async (val: string) => {
+    const clean = val.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    setUsername(clean);
+    handleUsernameCheck(clean);
+  };
+
   const handleGoogleSignUp = async () => {
     setError(null);
-    setIsUnauthorizedDomain(false);
     setGoogleLoading(true);
     try {
       await loginWithGoogle();
@@ -75,8 +88,9 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
       const e = err as Error;
       let msg = 'Google Sign Up failed.';
       if (e.message?.includes('unauthorized-domain')) {
-        setIsUnauthorizedDomain(true);
-        msg = 'Google OAuth is not authorized on this domain. Use Email & Password below or click Join as Guest!';
+        msg = 'Domain not authorized yet in Firebase Console > Authentication > Settings.';
+      } else if (e.message?.includes('operation-not-allowed')) {
+        msg = 'Google Sign-in is not enabled in Firebase Console.';
       } else if (e.message?.includes('popup-closed-by-user')) {
         msg = 'Google sign in popup was closed. Please try again.';
       } else if (e.message) {
@@ -92,13 +106,20 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
     e.preventDefault();
     setError(null);
 
-    if (username.length < 3) {
-      setError('Username must be at least 3 characters long.');
+    const targetUsername = username.trim() || displayName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '') || email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+    if (!targetUsername || targetUsername.length < 3) {
+      setError('Please choose a username of at least 3 characters.');
       return;
     }
 
     if (usernameStatus === 'Taken') {
-      setError('This username is already taken. Please pick another.');
+      setError('This username is already taken. Please choose a different one.');
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError('Password must be at least 6 characters long.');
       return;
     }
 
@@ -106,14 +127,24 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
     const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${selectedSeed}`;
 
     try {
-      await signup(email.trim(), password, displayName.trim(), username.trim(), avatarUrl);
+      await signup(
+        email.trim(),
+        password,
+        displayName.trim() || targetUsername,
+        targetUsername,
+        avatarUrl
+      );
     } catch (err: unknown) {
       const e = err as Error;
       let msg = e.message || 'Failed to create account.';
-      if (e.message?.includes('unauthorized-domain')) {
-        msg = 'Domain not authorized in Firebase. Please contact support or use email signup.';
-      } else if (e.message?.includes('email-already-in-use')) {
-        msg = 'This email is already registered. Try signing in instead.';
+      if (e.message?.includes('email-already-in-use')) {
+        msg = 'This email address is already in use. Please sign in instead.';
+      } else if (e.message?.includes('weak-password')) {
+        msg = 'Password is too weak. Please use at least 6 characters.';
+      } else if (e.message?.includes('invalid-email')) {
+        msg = 'Please enter a valid email address.';
+      } else if (e.message?.includes('operation-not-allowed')) {
+        msg = 'Email/Password sign-up is not enabled in Firebase Console. Please enable it in Authentication > Sign-in method.';
       }
       setError(msg);
     } finally {
@@ -146,10 +177,10 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
             <Video className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[#111b21] dark:text-white">
-            Create Account
+            Call CAM
           </h1>
           <p className="text-xs text-zinc-500 dark:text-[#8696a0] mt-1">
-            Join WhatsApp Messenger in seconds
+            Create your account to start messaging and video calls
           </p>
         </div>
 
@@ -162,15 +193,7 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
             </div>
           )}
 
-          {/* Domain Authorization Help if Google Sign-In is blocked on Netlify */}
-          {isUnauthorizedDomain && (
-            <DomainAuthHelp
-              onQuickGuestSignIn={handleGuestSignUp}
-              guestLoading={guestLoading}
-            />
-          )}
-
-          {error && !isUnauthorizedDomain && (
+          {error && (
             <div className="mb-5 p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
@@ -278,7 +301,7 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
                   type="text"
                   required
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  onChange={(e) => handleDisplayNameChange(e.target.value)}
                   placeholder="e.g. Alex Morgan"
                   className="w-full pl-9 pr-3 py-2.5 bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 rounded-2xl text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
                 />

@@ -1,4 +1,4 @@
-// Helper utilities for generating public, shareable WhatsApp Call links
+// Helper utilities for generating public, shareable Call CAM links
 export const PUBLIC_APP_ORIGIN =
   'https://ais-pre-mbgspic7h6o6pjqx5hklrq-604133282907.asia-southeast1.run.app';
 
@@ -46,13 +46,13 @@ export const getPublicCallLink = (callId: string): string => {
 };
 
 /**
- * Formats a WhatsApp share link with direct call link and optional room code
+ * Formats a WhatsApp / messaging share link with direct call link and optional room code
  */
 export const getWhatsAppShareUrl = (callId: string, roomCode?: string): string => {
   const link = getPublicCallLink(callId);
   const text = roomCode
-    ? `📞 Join my WhatsApp Video Call!\n\nDirect Link: ${link}\nRoom Code: ${roomCode}\n\n(Tap the link to join instantly on your phone or laptop!)`
-    : `📞 Join my WhatsApp Video Call!\n\nDirect Link: ${link}\n\n(Tap the link to join instantly on your phone or laptop!)`;
+    ? `📞 Join my Call CAM Video Call!\n\nDirect Link: ${link}\nRoom Code: ${roomCode}\n\n(Tap the link to join instantly on your phone or laptop!)`
+    : `📞 Join my Call CAM Video Call!\n\nDirect Link: ${link}\n\n(Tap the link to join instantly on your phone or laptop!)`;
 
   return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 };

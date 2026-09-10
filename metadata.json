@@ -1,6 +1,6 @@
 {
-  "name": "1-to-1 Video Calling & Messaging",
-  "description": "Private 1-to-1 real-time text messaging and WebRTC video calling with Firebase.",
+  "name": "Call CAM",
+  "description": "Real-time messaging, photos & peer-to-peer video calls with Call CAM.",
   "requestFramePermissions": [
     "camera",
     "microphone"

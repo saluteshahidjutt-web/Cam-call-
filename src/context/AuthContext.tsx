@@ -140,32 +140,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     username: string,
     photoURL?: string
   ) => {
-    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-    if (!cleanUsername) throw new Error('Username must contain letters, numbers, or underscores.');
+    let cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!cleanUsername) {
+      cleanUsername = (displayName.trim() || email.split('@')[0] || 'user')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '');
+      if (cleanUsername.length < 3) {
+        cleanUsername = `${cleanUsername || 'user'}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+    }
 
     // Authenticate FIRST so the user possesses a valid request.auth.uid for Firestore security rules
-    const res = await createUserWithEmailAndPassword(auth, email, pass);
+    const res = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    const resolvedDisplayName = displayName.trim() || cleanUsername;
     const defaultAvatar = photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanUsername}`;
 
     await updateProfile(res.user, {
-      displayName: displayName.trim(),
+      displayName: resolvedDisplayName,
       photoURL: defaultAvatar,
     }).catch(() => {});
 
     const newProfile: UserProfile = {
       uid: res.user.uid,
-      email: res.user.email || email,
-      displayName: displayName.trim(),
+      email: res.user.email || email.trim(),
+      displayName: resolvedDisplayName,
       username: cleanUsername,
       usernameLower: cleanUsername,
       photoURL: defaultAvatar,
-      bio: 'Hey there! I am using 1-to-1 Video & Chat.',
+      bio: 'Hey there! I am using Call CAM.',
       isOnline: true,
       lastSeen: Date.now(),
       createdAt: Date.now(),
     };
 
-    await setDoc(doc(db, 'users', res.user.uid), newProfile);
+    try {
+      await setDoc(doc(db, 'users', res.user.uid), newProfile);
+    } catch (dbErr) {
+      console.warn('Initial profile firestore write deferred:', dbErr);
+    }
     setProfile(newProfile);
   };
 
@@ -176,9 +188,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const currentUser = res.user;
 
     const userRef = doc(db, 'users', currentUser.uid);
-    const snap = await getDoc(userRef);
+    const snap = await getDoc(userRef).catch(() => null);
 
-    if (!snap.exists()) {
+    if (!snap || !snap.exists()) {
       let base = (currentUser.email?.split('@')[0] || currentUser.displayName || 'user')
         .toLowerCase()
         .replace(/[^a-z0-9_]/g, '');
@@ -200,13 +212,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username: finalUsername,
         usernameLower: finalUsername.toLowerCase(),
         photoURL: defaultAvatar,
-        bio: 'Hey there! I am using WhatsApp.',
+        bio: 'Hey there! I am using Call CAM.',
         isOnline: true,
         lastSeen: Date.now(),
         createdAt: Date.now(),
       };
 
-      await setDoc(userRef, newProfile);
+      try {
+        await setDoc(userRef, newProfile);
+      } catch (dbErr) {
+        console.warn('Google sign in firestore write warning:', dbErr);
+      }
       setProfile(newProfile);
     } else {
       setProfile(snap.data() as UserProfile);

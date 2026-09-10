@@ -31,7 +31,7 @@ export const IncomingCallModal: React.FC = () => {
         </h3>
         <p className="text-xs font-semibold text-[#25d366] flex items-center gap-1.5 mb-8">
           <Video className="w-4 h-4 animate-bounce" />
-          <span>WhatsApp Video Call...</span>
+          <span>Call CAM Video Call...</span>
         </p>
 
         {/* Action Buttons */}

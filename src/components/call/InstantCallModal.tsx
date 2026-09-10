@@ -135,7 +135,7 @@ export const InstantCallModal: React.FC<InstantCallModalProps> = ({
             <Video className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-xl font-bold tracking-tight">WhatsApp Call Link</h3>
+            <h3 className="text-xl font-bold tracking-tight">Call CAM Link</h3>
           </div>
         </div>
         <p className="text-xs text-zinc-500 dark:text-[#8696a0] mb-4">

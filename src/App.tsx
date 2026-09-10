@@ -71,7 +71,7 @@ function MainApp() {
           </div>
           <div className="w-6 h-6 border-2 border-[#00a884]/30 border-t-[#00a884] rounded-full animate-spin absolute -bottom-2 -right-2 bg-white dark:bg-zinc-900 shadow-sm" />
         </div>
-        <p className="text-sm font-semibold tracking-wide">WhatsApp Messenger</p>
+        <p className="text-sm font-semibold tracking-wide">Call CAM</p>
         <p className="text-xs text-zinc-400 mt-1">Connecting...</p>
       </div>
     );
@@ -187,7 +187,7 @@ function MainApp() {
               </div>
 
               <h2 className="text-2xl font-bold tracking-tight text-[#111b21] dark:text-white mb-2">
-                WhatsApp Messenger
+                Call CAM
               </h2>
               <p className="text-xs text-zinc-500 dark:text-[#8696a0] leading-relaxed mb-6">
                 Send and receive real-time messages, share photos, and make peer-to-peer video calls securely.
