@@ -1,1 +1,93 @@
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    --wa-teal: #075e54;
+    --wa-teal-light: #128c7e;
+    --wa-green: #25d366;
+    --wa-green-dark: #00a884;
+    --wa-bg: #f0f2f5;
+    --wa-header-bg: #075e54;
+    --wa-sidebar-bg: #ffffff;
+    --wa-chat-bg: #efeae2;
+    --wa-bubble-me: #e7ffdb;
+    --wa-bubble-other: #ffffff;
+    --wa-text-primary: #111b21;
+    --wa-text-secondary: #667781;
+    --wa-border: #e9edef;
+    color-scheme: light;
+  }
+
+  .dark {
+    --wa-teal: #1f2c34;
+    --wa-teal-light: #2a3942;
+    --wa-green: #00a884;
+    --wa-green-dark: #008069;
+    --wa-bg: #0c1317;
+    --wa-header-bg: #1f2c34;
+    --wa-sidebar-bg: #121b22;
+    --wa-chat-bg: #0b141a;
+    --wa-bubble-me: #005c4b;
+    --wa-bubble-other: #202c33;
+    --wa-text-primary: #e9edef;
+    --wa-text-secondary: #8696a0;
+    --wa-border: #222e35;
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--wa-bg);
+    color: var(--wa-text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* WhatsApp Theme Utility Helpers */
+.wa-header {
+  background-color: var(--wa-header-bg);
+  color: #ffffff;
+}
+
+.wa-active-tab {
+  border-bottom: 3px solid #ffffff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.wa-inactive-tab {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+.wa-inactive-tab:hover {
+  color: #ffffff;
+}
+
+.wa-bubble-tail-me {
+  border-top-right-radius: 2px !important;
+}
+
+.wa-bubble-tail-other {
+  border-top-left-radius: 2px !important;
+}
+
+/* Custom Scrollbar matching WhatsApp Web */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+

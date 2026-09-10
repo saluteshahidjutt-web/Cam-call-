@@ -29,7 +29,7 @@ interface CallContextType {
   callDuration: number;
   error: string | null;
   startCall: (callee: UserProfile) => Promise<void>;
-  createCallLink: () => Promise<string>;
+  createCallLink: () => Promise<{ callId: string; roomCode: string }>;
   joinCallWithLink: (callId: string) => Promise<void>;
   acceptCall: () => Promise<void>;
   rejectCall: () => Promise<void>;
@@ -446,7 +446,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // CREATE INSTANT CALL ROOM (Caller creates link & waits)
-  const createCallLink = async (): Promise<string> => {
+  const createCallLink = async (): Promise<{ callId: string; roomCode: string }> => {
     if (!user || !profile) throw new Error('User must be logged in to start a call');
     setError(null);
 
@@ -576,18 +576,46 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prevPcClose();
     };
 
-    return callId;
+    return { callId, roomCode };
   };
 
-  // JOIN INSTANT CALL ROOM (Callee joins using callId)
-  const joinCallWithLink = async (callId: string) => {
+  // JOIN INSTANT CALL ROOM (Callee joins using callId, roomCode, or full link)
+  const joinCallWithLink = async (rawInput: string) => {
     if (!user || !profile) throw new Error('User must be logged in to join a call');
     soundManager.stopRingtone();
     setError(null);
 
-    // 1. Fetch Call doc
-    const callDocRef = doc(db, 'calls', callId);
-    const callSnap = await getDoc(callDocRef);
+    let callId = rawInput.trim();
+    if (callId.includes('#call=')) {
+      callId = callId.split('#call=')[1].split('&')[0];
+    } else if (callId.includes('?call=')) {
+      callId = callId.split('?call=')[1].split('&')[0];
+    }
+
+    if (!callId) {
+      throw new Error('Please enter a valid call link or room code.');
+    }
+
+    // 1. Fetch Call doc by ID
+    let callDocRef = doc(db, 'calls', callId);
+    let callSnap = await getDoc(callDocRef);
+
+    // If not found by doc ID, attempt finding by 6-character roomCode
+    if (!callSnap.exists()) {
+      const q = query(
+        collection(db, 'calls'),
+        where('roomCode', '==', callId.toUpperCase())
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        // Pick the latest non-ended room with this code
+        const matchingDoc = snap.docs.find((d) => d.data().status !== 'ended') || snap.docs[0];
+        callDocRef = matchingDoc.ref;
+        callSnap = matchingDoc;
+        callId = callSnap.id;
+      }
+    }
+
     if (!callSnap.exists()) {
       throw new Error('Call session not found or link has expired.');
     }

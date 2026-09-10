@@ -7,6 +7,8 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
 import {
   doc,
@@ -27,6 +29,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   signup: (email: string, pass: string, displayName: string, username: string, photoURL?: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -115,13 +118,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkUsernameAvailable = async (username: string): Promise<boolean> => {
     const clean = username.trim().toLowerCase();
     if (!clean) return false;
-    const q = query(collection(db, 'users'), where('usernameLower', '==', clean));
-    const snap = await getDocs(q);
-    if (snap.empty) return true;
-    if (user && snap.docs.length === 1 && snap.docs[0].id === user.uid) {
+    try {
+      const q = query(collection(db, 'users'), where('usernameLower', '==', clean));
+      const snap = await getDocs(q);
+      if (snap.empty) return true;
+      if (user && snap.docs.length === 1 && snap.docs[0].id === user.uid) {
+        return true;
+      }
+      return false;
+    } catch {
+      // Allow proceeding if rules or offline state prevents pre-checking
       return true;
     }
-    return false;
   };
 
   const signup = async (
@@ -134,18 +142,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (!cleanUsername) throw new Error('Username must contain letters, numbers, or underscores.');
 
-    const available = await checkUsernameAvailable(cleanUsername);
-    if (!available) {
-      throw new Error(`Username @${cleanUsername} is already taken. Please choose another.`);
-    }
-
+    // Authenticate FIRST so the user possesses a valid request.auth.uid for Firestore security rules
     const res = await createUserWithEmailAndPassword(auth, email, pass);
     const defaultAvatar = photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanUsername}`;
 
     await updateProfile(res.user, {
       displayName: displayName.trim(),
       photoURL: defaultAvatar,
-    });
+    }).catch(() => {});
 
     const newProfile: UserProfile = {
       uid: res.user.uid,
@@ -162,6 +166,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     await setDoc(doc(db, 'users', res.user.uid), newProfile);
     setProfile(newProfile);
+  };
+
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const res = await signInWithPopup(auth, provider);
+    const currentUser = res.user;
+
+    const userRef = doc(db, 'users', currentUser.uid);
+    const snap = await getDoc(userRef);
+
+    if (!snap.exists()) {
+      let base = (currentUser.email?.split('@')[0] || currentUser.displayName || 'user')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '');
+      if (base.length < 3) base = 'user_' + base;
+      let finalUsername = base;
+      const isAvail = await checkUsernameAvailable(finalUsername);
+      if (!isAvail) {
+        finalUsername = `${base}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+
+      const defaultAvatar =
+        currentUser.photoURL ||
+        `https://api.dicebear.com/7.x/bottts/svg?seed=${finalUsername}`;
+
+      const newProfile: UserProfile = {
+        uid: currentUser.uid,
+        email: currentUser.email || '',
+        displayName: currentUser.displayName || finalUsername,
+        username: finalUsername,
+        usernameLower: finalUsername.toLowerCase(),
+        photoURL: defaultAvatar,
+        bio: 'Hey there! I am using WhatsApp.',
+        isOnline: true,
+        lastSeen: Date.now(),
+        createdAt: Date.now(),
+      };
+
+      await setDoc(userRef, newProfile);
+      setProfile(newProfile);
+    } else {
+      setProfile(snap.data() as UserProfile);
+      await updateDoc(userRef, { isOnline: true, lastSeen: Date.now() }).catch(() => {});
+    }
   };
 
   const login = async (email: string, pass: string) => {
@@ -217,6 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profile,
         loading,
         login,
+        loginWithGoogle,
         signup,
         logout,
         resetPassword,

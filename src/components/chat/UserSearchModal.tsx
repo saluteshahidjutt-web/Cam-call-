@@ -66,108 +66,94 @@ export const UserSearchModal: React.FC<UserSearchModalProps> = ({
 
   const handleStartCall = (target: UserProfile) => {
     onClose();
-    startCall(target);
-  };
-
-  const handleSelect = (target: UserProfile) => {
-    onSelectUser(target);
-    onClose();
+    startCall(target.uid, target.displayName || target.username, target.photoURL);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden text-zinc-100">
-        {/* Header */}
-        <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-400" />
-            <h3 className="font-semibold text-base">New 1-to-1 Conversation</h3>
-          </div>
-          <button
-            id="close-search-user-modal"
-            onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 transition-colors animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-white dark:bg-[#1f2c34] rounded-2xl p-6 shadow-2xl text-[#111b21] dark:text-[#e9edef] border border-black/5 dark:border-white/10 relative flex flex-col max-h-[85vh]">
+        <button
+          id="close-search-modal"
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
-        {/* Search Input */}
-        <div className="p-3 border-b border-zinc-800/80 bg-zinc-950/40">
-          <div className="relative">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              id="search-username-input"
-              type="text"
-              autoFocus
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by name, @username or email..."
-              className="w-full bg-zinc-900 border border-zinc-700/60 rounded-xl pl-9 pr-4 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-            />
-          </div>
+        <div className="flex items-center gap-2 mb-1">
+          <Users className="w-5 h-5 text-[#00a884]" />
+          <h3 className="text-xl font-bold tracking-tight">New Contact & Chat</h3>
+        </div>
+        <p className="text-xs text-zinc-500 dark:text-[#8696a0] mb-4">
+          Find registered users by name, @username, or email
+        </p>
+
+        {/* Search input */}
+        <div className="relative mb-4">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input
+            id="search-users-input"
+            type="text"
+            placeholder="Search by username or name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            autoFocus
+            className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-xs focus:ring-2 focus:ring-emerald-500/40 focus:outline-none transition-all text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+          />
         </div>
 
         {/* User list */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto space-y-1 divide-y divide-black/[0.03] dark:divide-white/[0.04] scrollbar-thin pr-1">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-12 text-zinc-400 text-sm gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-              <span>Finding contacts...</span>
+            <div className="py-12 text-center text-zinc-400">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-500" />
+              <p className="text-xs">Finding contacts...</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-12 text-center text-zinc-400 text-sm">
-              <p>No registered users found matching "{searchTerm}".</p>
-              <p className="text-xs text-zinc-500 mt-1">
-                Tip: Open another browser tab/incognito and register a 2nd user to test!
-              </p>
+            <div className="py-12 text-center text-zinc-400 dark:text-zinc-500">
+              <p className="text-xs">No users found matching "{searchTerm}"</p>
             </div>
           ) : (
-            filtered.map((u) => (
+            filtered.map((target) => (
               <div
-                key={u.uid}
-                className="flex items-center justify-between p-3 rounded-xl hover:bg-zinc-800/60 border border-transparent hover:border-zinc-700/40 transition-all group"
+                key={target.uid}
+                className="pt-2 pb-2 px-2 rounded-xl flex items-center justify-between hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-colors"
               >
                 <div
-                  className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
-                  onClick={() => handleSelect(u)}
+                  className="flex items-center gap-3 cursor-pointer min-w-0 flex-1 mr-2"
+                  onClick={() => onSelectUser(target)}
                 >
                   <Avatar
-                    name={u.displayName || u.username}
-                    photoURL={u.photoURL}
+                    name={target.displayName || target.username}
+                    photoURL={target.photoURL}
                     size="md"
-                    isOnline={u.isOnline}
+                    isOnline={target.isOnline}
                     showOnlineStatus
                   />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-zinc-100 truncate">
-                        {u.displayName || u.username}
-                      </p>
-                      {u.isOnline && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          Online
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-zinc-400 truncate">@{u.username}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-100">
+                      {target.displayName || target.username}
+                    </p>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                      @{target.username}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
-                    id={`chat-with-${u.username}`}
-                    onClick={() => handleSelect(u)}
-                    className="p-2 rounded-lg bg-zinc-800 hover:bg-emerald-600 text-zinc-300 hover:text-white transition-colors"
-                    title="Send message"
+                    onClick={() => onSelectUser(target)}
+                    className="p-2 rounded-lg text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                    title="Chat"
                   >
                     <MessageSquare className="w-4 h-4" />
                   </button>
+
                   <button
-                    id={`call-with-${u.username}`}
-                    onClick={() => handleStartCall(u)}
-                    className="p-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 transition-colors"
-                    title="Start 1-to-1 video call"
+                    onClick={() => handleStartCall(target)}
+                    className="p-2 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15 border border-emerald-500/30 transition-colors"
+                    title="Video Call"
                   >
                     <Video className="w-4 h-4" />
                   </button>

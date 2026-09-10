@@ -59,29 +59,28 @@ export const VideoCallScreen: React.FC = () => {
   const handleShareWhatsApp = () => {
     if (!activeCall) return;
     const link = `${window.location.origin}${window.location.pathname}#call=${activeCall.id}`;
-    const text = encodeURIComponent(`Join my private 1-to-1 video call now: ${link}`);
+    const text = encodeURIComponent(`Join my live 1-to-1 video call:\n${link}`);
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
-  // Bind local stream to video
+  // Bind streams to video tags
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
-  }, [localStream, isPipSwapped]);
+  }, [localStream]);
 
-  // Bind remote stream to video
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
-  }, [remoteStream, isPipSwapped]);
+  }, [remoteStream]);
 
-  if (!activeCall) return null;
+  if (!activeCall || callStatus === 'ended') return null;
 
-  const isCaller = activeCall.callerId === user?.uid;
-  const peerName = isCaller ? activeCall.calleeName : activeCall.callerName;
-  const peerPhoto = isCaller ? activeCall.calleePhoto : activeCall.callerPhoto;
+  const isCaller = user?.uid === activeCall.callerId;
+  const partnerName = isCaller ? activeCall.calleeName : activeCall.callerName;
+  const partnerPhoto = isCaller ? activeCall.calleePhoto : activeCall.callerPhoto;
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -94,188 +93,180 @@ export const VideoCallScreen: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-zinc-950 flex flex-col justify-between overflow-hidden select-none">
-      {/* Remote Video (Main Viewport) */}
-      <div className="relative w-full h-full flex items-center justify-center bg-zinc-900 overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-black text-white flex flex-col justify-between overflow-hidden select-none animate-in fade-in duration-300">
+      {/* Remote Video Stream (Full Canvas) */}
+      <div className="absolute inset-0 w-full h-full bg-zinc-950 flex items-center justify-center overflow-hidden">
         {callStatus === 'connected' && remoteStream ? (
           <video
-            ref={isPipSwapped ? localVideoRef : remoteVideoRef}
+            ref={remoteVideoRef}
             autoPlay
             playsInline
-            muted={isPipSwapped}
-            className={`w-full h-full object-cover ${isPipSwapped ? 'scale-x-[-1]' : ''}`}
+            className="w-full h-full object-cover"
           />
-        ) : callStatus === 'waiting' ? (
-          <div className="flex flex-col items-center justify-center p-6 text-center max-w-md animate-in fade-in duration-300 z-10">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-600/20 text-emerald-400 ring-1 ring-emerald-500/30 flex items-center justify-center mb-4 shadow-xl shadow-emerald-950/50 animate-pulse">
-              <VideoIcon className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-white mb-1.5">Waiting for your friend to join...</h2>
-            <p className="text-xs text-zinc-400 mb-5 leading-relaxed">
-              Your camera & microphone are live. Share this invite link with the person you want to call:
-            </p>
-
-            {/* Share Card */}
-            <div className="w-full bg-zinc-950/90 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3 shadow-2xl backdrop-blur-md">
-              <div className="flex items-center gap-2">
-                <input
-                  readOnly
-                  value={`${window.location.origin}${window.location.pathname}#call=${activeCall.id}`}
-                  className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 font-mono select-all focus:outline-none truncate"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleShareWhatsApp}
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-md shadow-emerald-950/50"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Share Link on WhatsApp</span>
-              </button>
-            </div>
-          </div>
         ) : (
-          <div className="flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+          /* Waiting / Connecting State */
+          <div className="flex flex-col items-center justify-center p-6 text-center z-10">
             <div className="relative mb-6">
-              {callStatus === 'ringing' && (
-                <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" />
-              )}
+              <div className="w-32 h-32 rounded-full border-2 border-emerald-500/40 animate-ping absolute inset-0" />
               <Avatar
-                name={peerName || 'Contact'}
-                photoURL={peerPhoto}
+                name={partnerName || 'Participant'}
+                photoURL={partnerPhoto}
                 size="2xl"
-                className="relative ring-4 ring-zinc-800 shadow-2xl"
+                className="relative ring-4 ring-emerald-500/40 shadow-2xl"
               />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">{peerName}</h2>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-800/80 border border-zinc-700/60 text-xs font-medium text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>
-                {callStatus === 'ringing'
-                  ? 'Ringing...'
-                  : callStatus === 'connected'
-                  ? 'Connecting video stream...'
-                  : 'Call session active'}
-              </span>
-            </div>
+
+            <h2 className="text-2xl font-bold mb-2">{partnerName || 'Waiting for peer...'}</h2>
+            <p className="text-sm font-medium text-emerald-400 animate-pulse mb-6">
+              {callStatus === 'waiting'
+                ? 'Waiting for participant to join link...'
+                : callStatus === 'ringing'
+                ? 'Ringing...'
+                : 'Establishing secure WebRTC peer connection...'}
+            </p>
+
+            {/* Quick Share Link Pill while waiting */}
+            {activeCall.isLinkCall && (
+              <div className="max-w-sm w-full p-4 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl flex flex-col gap-3">
+                <p className="text-xs text-zinc-300">
+                  Invite your contact to this instant room:
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="flex-1 py-2 px-3 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    <span>{copied ? 'Copied' : 'Copy Link'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareWhatsApp}
+                    className="py-2 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-md"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>WhatsApp</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
+      </div>
 
-        {/* Local Video Picture-in-Picture (PiP) */}
-        <div
-          onClick={() => setIsPipSwapped(!isPipSwapped)}
-          className="absolute top-4 right-4 sm:top-6 sm:right-6 w-28 sm:w-44 aspect-video rounded-2xl overflow-hidden bg-zinc-800 border-2 border-zinc-700/80 shadow-2xl cursor-pointer transition-transform hover:scale-105 group"
-          title="Click to swap video view"
-        >
-          {isVideoMuted ? (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-zinc-400 text-xs">
-              <VideoOff className="w-5 h-5 mb-1 text-zinc-500" />
-              <span className="text-[10px]">Camera off</span>
+      {/* Floating Local Video (iOS Picture-in-Picture) */}
+      <div
+        onClick={() => setIsPipSwapped(!isPipSwapped)}
+        className="absolute top-16 right-4 sm:right-6 w-28 sm:w-36 aspect-[3/4] rounded-2xl overflow-hidden border-2 border-white/30 shadow-2xl z-30 cursor-pointer bg-zinc-900 group hover:scale-105 transition-all backdrop-blur-md"
+        title="Tap to swap preview"
+      >
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`w-full h-full object-cover ${isVideoMuted ? 'hidden' : ''} scale-x-[-1]`}
+        />
+        {isVideoMuted && (
+          <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400 p-2 bg-zinc-900">
+            <VideoOff className="w-6 h-6 mb-1 text-rose-400" />
+            <span className="text-[10px] font-semibold">Camera Off</span>
+          </div>
+        )}
+        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-[9px] font-medium backdrop-blur-xs">
+          You
+        </div>
+      </div>
+
+      {/* WhatsApp Call Top Bar */}
+      <div className="relative z-20 p-4 sm:px-6 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col">
+            <span className="text-base font-bold text-white drop-shadow-md leading-tight">
+              {partnerName}
+            </span>
+            <div className="flex items-center gap-2 text-xs text-zinc-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{callStatus === 'connected' ? formatDuration(callDuration) : 'Connecting...'}</span>
             </div>
-          ) : (
-            <video
-              ref={isPipSwapped ? remoteVideoRef : localVideoRef}
-              autoPlay
-              playsInline
-              muted={!isPipSwapped}
-              className={`w-full h-full object-cover ${!isPipSwapped ? 'scale-x-[-1]' : ''}`}
-            />
-          )}
-          <span className="absolute bottom-1 left-2 text-[9px] px-1 py-0.5 rounded-sm bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-            {isPipSwapped ? peerName : 'You'}
-          </span>
+          </div>
         </div>
 
-        {/* Top Info Bar Overlay */}
-        <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-3 z-20">
-          <div className="px-3.5 py-1.5 rounded-xl bg-zinc-900/80 backdrop-blur-md border border-zinc-800 text-xs flex items-center gap-2.5 shadow-lg">
-            <span className="font-semibold text-white">{peerName}</span>
-            <span className="text-zinc-500">•</span>
-            <span className="text-emerald-400 font-mono">
-              {callStatus === 'connected' ? formatDuration(callDuration) : 'Calling...'}
-            </span>
-          </div>
-
+        <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-zinc-900/80 backdrop-blur-md border border-zinc-800 text-zinc-300 hover:text-white transition-colors"
+            className="p-2.5 rounded-full bg-black/40 hover:bg-black/60 border border-white/20 text-white backdrop-blur-md transition-all active:scale-95"
             title="Toggle fullscreen"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
         </div>
+      </div>
 
-        {/* Network or Permission Error Banner */}
-        {error && (
-          <div className="absolute top-20 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:w-auto max-w-md z-30 p-3 rounded-xl bg-rose-950/90 border border-rose-800/80 text-rose-200 text-xs flex items-center justify-between gap-3 shadow-xl backdrop-blur-md animate-in slide-in-from-top-2">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{error}</span>
-            </div>
-            <button
-              onClick={clearError}
-              className="p-1 text-rose-300 hover:text-white rounded-lg hover:bg-rose-900/50"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+      {/* Dynamic Error Notification */}
+      {error && (
+        <div className="relative z-30 mx-4 self-center p-3 rounded-2xl bg-rose-950/90 border border-rose-500/40 text-rose-200 text-xs flex items-center gap-2 backdrop-blur-lg shadow-xl animate-in slide-in-from-top duration-200">
+          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button type="button" onClick={clearError} className="p-1 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
-        {/* Bottom Floating Control Dock */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 sm:gap-4 px-5 py-3 rounded-3xl bg-zinc-900/90 border border-zinc-800/90 backdrop-blur-md shadow-2xl">
-          {/* Mute Microphone */}
+      {/* WhatsApp Call Bottom Control Island */}
+      <div className="relative z-20 pb-8 pt-4 px-4 flex justify-center bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+        <div className="flex items-center gap-4 sm:gap-6 px-6 py-3.5 rounded-full bg-[#1f2c34]/90 border border-white/15 shadow-2xl">
+          {/* Mute Mic */}
           <button
             id="toggle-mic-btn"
+            type="button"
             onClick={toggleMicrophone}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-90 ${
               isMicMuted
-                ? 'bg-rose-600/20 text-rose-400 border border-rose-500/40'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white'
+                ? 'bg-rose-600 hover:bg-rose-500 text-white ring-2 ring-rose-400/40'
+                : 'bg-white/20 hover:bg-white/30 text-white'
             }`}
-            title={isMicMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+            title={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}
           >
             {isMicMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
 
-          {/* Camera On / Off */}
+          {/* Toggle Video */}
           <button
-            id="toggle-camera-btn"
+            id="toggle-cam-btn"
+            type="button"
             onClick={toggleCamera}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-90 ${
               isVideoMuted
-                ? 'bg-rose-600/20 text-rose-400 border border-rose-500/40'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white'
+                ? 'bg-rose-600 hover:bg-rose-500 text-white ring-2 ring-rose-400/40'
+                : 'bg-white/20 hover:bg-white/30 text-white'
             }`}
-            title={isVideoMuted ? 'Turn Camera On' : 'Turn Camera Off'}
+            title={isVideoMuted ? 'Turn video on' : 'Turn video off'}
           >
             {isVideoMuted ? <VideoOff className="w-5 h-5" /> : <VideoIcon className="w-5 h-5" />}
           </button>
 
-          {/* Switch Camera (Mobile) */}
+          {/* Switch Camera (Front/Back) */}
           <button
-            id="switch-camera-btn"
+            id="switch-cam-btn"
+            type="button"
             onClick={switchCamera}
-            className="w-12 h-12 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white flex items-center justify-center transition-all"
-            title="Switch Camera (Front / Back)"
+            className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all shadow-lg active:scale-90"
+            title="Switch camera"
           >
             <SwitchCamera className="w-5 h-5" />
           </button>
 
-          {/* End Call */}
+          {/* Hang Up (Red Call Button) */}
           <button
-            id="end-call-btn"
+            id="hangup-call-btn"
+            type="button"
             onClick={endCall}
-            className="w-13 h-13 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-950/60 hover:scale-105 active:scale-95 transition-all ml-2"
-            title="End Call"
+            className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition-all shadow-xl shadow-rose-950/60 active:scale-95 ring-4 ring-rose-500/20"
+            title="End Video Call"
           >
             <PhoneOff className="w-6 h-6" />
           </button>

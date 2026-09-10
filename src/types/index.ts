@@ -24,6 +24,8 @@ export interface Conversation {
   };
   lastMessage?: {
     text: string;
+    imageUrl?: string;
+    type?: 'text' | 'image' | 'call_log';
     senderId: string;
     timestamp: number;
     seen: boolean;
@@ -38,10 +40,34 @@ export interface Message {
   id: string;
   conversationId: string;
   senderId: string;
-  text: string;
+  text?: string;
+  imageUrl?: string;
+  caption?: string;
+  type?: 'text' | 'image' | 'call_log';
   timestamp: number;
   seen: boolean;
   seenAt?: number;
+}
+
+export interface StatusItem {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoto?: string;
+  caption?: string;
+  imageUrl?: string;
+  timestamp: number;
+}
+
+export interface CallLogItem {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  partnerPhoto?: string;
+  type: 'video' | 'audio';
+  direction: 'incoming' | 'outgoing' | 'missed';
+  timestamp: number;
+  duration?: number;
 }
 
 export type CallStatus = 'ringing' | 'connected' | 'rejected' | 'ended' | 'missed' | 'waiting';
