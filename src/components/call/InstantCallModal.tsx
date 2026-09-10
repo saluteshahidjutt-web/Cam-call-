@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCall } from '../../context/CallContext';
+import { getPublicCallLink, getWhatsAppShareUrl } from '../../lib/callLink';
 import {
   Video,
   Copy,
@@ -21,17 +22,6 @@ interface InstantCallModalProps {
   onClose: () => void;
   initialCallId?: string;
 }
-
-export const getPublicAppBaseUrl = (): string => {
-  let origin = window.location.origin;
-  // If running inside Google AI Studio container (ais-dev-*), convert to the public shared URL (ais-pre-*)
-  if (origin.includes('ais-dev-')) {
-    origin = origin.replace('ais-dev-', 'ais-pre-');
-  } else if (origin.includes('aistudio.google.com')) {
-    origin = 'https://ais-pre-mbgspic7h6o6pjqx5hklrq-604133282907.asia-southeast1.run.app';
-  }
-  return origin;
-};
 
 export const InstantCallModal: React.FC<InstantCallModalProps> = ({
   isOpen,
@@ -66,8 +56,7 @@ export const InstantCallModal: React.FC<InstantCallModalProps> = ({
     setLoading(true);
     try {
       const { callId, roomCode } = await createCallLink();
-      const publicBase = getPublicAppBaseUrl();
-      const link = `${publicBase}/#call=${callId}`;
+      const link = getPublicCallLink(callId);
       setCreatedCallId(callId);
       setCreatedRoomCode(roomCode);
       setCreatedLink(link);
@@ -101,11 +90,8 @@ export const InstantCallModal: React.FC<InstantCallModalProps> = ({
   };
 
   const handleShareWhatsApp = () => {
-    if (!createdLink) return;
-    const text = encodeURIComponent(
-      `📞 Join my WhatsApp Video Call!\n\nDirect Link: ${createdLink}\nRoom Code: ${createdRoomCode}\n\n(Tap the link on your phone to join instantly!)`
-    );
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    if (!createdCallId) return;
+    window.open(getWhatsAppShareUrl(createdCallId, createdRoomCode), '_blank');
   };
 
   const handleJoinCall = async (e: React.FormEvent) => {

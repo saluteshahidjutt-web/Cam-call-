@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useCall } from '../../context/CallContext';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../common/Avatar';
+import { getPublicCallLink, getWhatsAppShareUrl } from '../../lib/callLink';
 import {
   Mic,
   MicOff,
@@ -16,6 +17,7 @@ import {
   Copy,
   Check,
   Share2,
+  Info,
 } from 'lucide-react';
 
 function formatDuration(seconds: number): string {
@@ -47,20 +49,27 @@ export const VideoCallScreen: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPipSwapped, setIsPipSwapped] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const handleCopyLink = () => {
     if (!activeCall) return;
-    const link = `${window.location.origin}${window.location.pathname}#call=${activeCall.id}`;
+    const link = getPublicCallLink(activeCall.id);
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const handleCopyCode = () => {
+    if (!activeCall?.roomCode) return;
+    navigator.clipboard.writeText(activeCall.roomCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2500);
+  };
+
   const handleShareWhatsApp = () => {
     if (!activeCall) return;
-    const link = `${window.location.origin}${window.location.pathname}#call=${activeCall.id}`;
-    const text = encodeURIComponent(`Join my live 1-to-1 video call:\n${link}`);
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    const shareUrl = getWhatsAppShareUrl(activeCall.id, activeCall.roomCode);
+    window.open(shareUrl, '_blank');
   };
 
   // Bind streams to video tags
@@ -128,8 +137,29 @@ export const VideoCallScreen: React.FC = () => {
             {/* Quick Share Link Pill while waiting */}
             {activeCall.isLinkCall && (
               <div className="max-w-sm w-full p-4 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl flex flex-col gap-3">
+                {activeCall.roomCode && (
+                  <div className="p-3 rounded-2xl bg-black/40 border border-white/10 text-center">
+                    <p className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider mb-1">
+                      6-Digit Room Code (Fast Join)
+                    </p>
+                    <div className="flex items-center justify-center gap-2 my-1">
+                      <span className="text-2xl font-mono font-bold tracking-widest text-white bg-white/10 px-3 py-1 rounded-xl border border-white/10">
+                        {activeCall.roomCode}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyCode}
+                        className="py-1.5 px-3 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                      >
+                        {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-xs text-zinc-300">
-                  Invite your contact to this instant room:
+                  Invite your contact using public link or WhatsApp:
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -138,7 +168,7 @@ export const VideoCallScreen: React.FC = () => {
                     className="flex-1 py-2 px-3 rounded-xl bg-white/20 hover:bg-white/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    <span>{copied ? 'Copied' : 'Copy Link'}</span>
+                    <span>{copied ? 'Copied Link' : 'Copy Public Link'}</span>
                   </button>
                   <button
                     type="button"
@@ -148,6 +178,13 @@ export const VideoCallScreen: React.FC = () => {
                     <Share2 className="w-4 h-4" />
                     <span>WhatsApp</span>
                   </button>
+                </div>
+
+                <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-[11px] text-zinc-300 flex items-start gap-1.5 text-left">
+                  <Info className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>
+                    Second phone can open the link in any mobile browser or enter the 6-digit code in <strong>Join Room</strong>.
+                  </span>
                 </div>
               </div>
             )}
