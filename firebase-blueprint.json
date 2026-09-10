@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with display name, avatar, presence, and contact info",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "username": { "type": "string" },
+        "usernameLower": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "lastSeen": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "displayName", "username"]
+    },
+    "CallSession": {
+      "title": "CallSession",
+      "description": "Real-time WebRTC 1-on-1 audio/video call session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "callerId": { "type": "string" },
+        "callerName": { "type": "string" },
+        "callerPhoto": { "type": "string" },
+        "calleeId": { "type": "string" },
+        "calleeName": { "type": "string" },
+        "calleePhoto": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "isLinkCall": { "type": "boolean" },
+        "roomCode": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "endedAt": { "type": "number" }
+      },
+      "required": ["id", "callerId", "callerName", "status", "createdAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "1-on-1 chat conversation metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "participants", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "entity": "UserProfile",
+      "description": "User profile collection"
+    },
+    "/calls/{callId}": {
+      "entity": "CallSession",
+      "description": "WebRTC Call signaling document"
+    },
+    "/conversations/{conversationId}": {
+      "entity": "Conversation",
+      "description": "Chat conversations"
+    }
+  }
+}

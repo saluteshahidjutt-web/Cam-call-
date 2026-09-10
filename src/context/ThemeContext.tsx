@@ -43,11 +43,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (active === 'dark') {
         root.classList.add('dark');
         root.classList.remove('light');
+        document.body.classList.add('dark');
+        document.body.classList.remove('light');
         root.style.colorScheme = 'dark';
       } else {
         root.classList.add('light');
         root.classList.remove('dark');
+        document.body.classList.add('light');
+        document.body.classList.remove('dark');
         root.style.colorScheme = 'light';
+      }
+
+      // Update mobile browser status bar theme-color
+      const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeColorMeta) {
+        themeColorMeta.setAttribute('content', active === 'dark' ? '#111b21' : '#00a884');
       }
     };
 

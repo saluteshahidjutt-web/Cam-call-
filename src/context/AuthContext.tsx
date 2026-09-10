@@ -40,10 +40,38 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const AUTH_STORAGE_KEY = 'callcam_auth_session';
+const PROFILE_STORAGE_KEY = 'callcam_auth_profile';
+
+function getCachedProfile(): UserProfile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as UserProfile;
+  } catch {}
+  return null;
+}
+
+function saveCachedProfile(profile: UserProfile | null) {
+  try {
+    if (profile) {
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      localStorage.setItem(AUTH_STORAGE_KEY, profile.uid);
+    } else {
+      localStorage.removeItem(PROFILE_STORAGE_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  } catch {}
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [profile, setProfileState] = useState<UserProfile | null>(() => getCachedProfile());
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => !getCachedProfile());
+
+  const setProfile = (newProf: UserProfile | null) => {
+    setProfileState(newProf);
+    saveCachedProfile(newProf);
+  };
 
   // Monitor Auth state & User Profile in Firestore
   useEffect(() => {
@@ -55,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isMounted) {
         setLoading(false);
       }
-    }, 1500);
+    }, 1200);
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       if (!isMounted) return;
@@ -69,7 +97,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '') ||
           `user_${currentUser.uid.slice(0, 5)}`;
 
-        const defaultFallbackProfile: UserProfile = {
+        const cached = getCachedProfile();
+        const defaultFallbackProfile: UserProfile = cached?.uid === currentUser.uid ? cached : {
           uid: currentUser.uid,
           email: currentUser.email || '',
           displayName: cleanName,
@@ -84,6 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: Date.now(),
         };
 
+        setProfile(defaultFallbackProfile);
+        setLoading(false);
+
         const userRef = doc(db, 'users', currentUser.uid);
 
         // Listen to live user profile
@@ -92,9 +124,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           (snapshot) => {
             if (!isMounted) return;
             if (snapshot.exists()) {
-              setProfile(snapshot.data() as UserProfile);
+              const liveData = snapshot.data() as UserProfile;
+              setProfile(liveData);
             } else {
-              // Doc does not exist yet in Firestore, use fallback and persist it
+              // Doc does not exist yet in Firestore, persist fallback
               setProfile(defaultFallbackProfile);
               setDoc(userRef, defaultFallbackProfile, { merge: true }).catch(() => {});
             }
@@ -103,8 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           (error) => {
             console.warn('Firestore user profile snapshot error:', error);
             if (!isMounted) return;
-            // On Firestore error/offline, keep the fallback profile so user can proceed
-            setProfile((prev) => prev || defaultFallbackProfile);
+            // On Firestore error/offline, keep the cached profile so user can proceed
+            setProfile(defaultFallbackProfile);
             setLoading(false);
           }
         );
@@ -119,7 +152,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           unsubscribeDoc();
           unsubscribeDoc = null;
         }
-        setProfile(null);
+        // If we don't have a currentUser from Firebase Auth, check if user had a cached session
+        const cached = getCachedProfile();
+        if (!cached) {
+          setProfile(null);
+        }
         setLoading(false);
       }
     });
@@ -163,14 +200,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!clean) return false;
     try {
       const q = query(collection(db, 'users'), where('usernameLower', '==', clean));
-      const snap = await getDocs(q);
-      if (snap.empty) return true;
-      if (user && snap.docs.length === 1 && snap.docs[0].id === user.uid) {
-        return true;
-      }
-      return false;
+      // Fast timeout: Do not hang for more than 1 second
+      const timeoutPromise = new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 1000));
+      const fetchPromise = getDocs(q).then((snap) => {
+        if (snap.empty) return true;
+        if (user && snap.docs.length === 1 && snap.docs[0].id === user.uid) {
+          return true;
+        }
+        return false;
+      });
+      return await Promise.race([fetchPromise, timeoutPromise]);
     } catch {
-      // Allow proceeding if rules or offline state prevents pre-checking
       return true;
     }
   };
@@ -192,15 +232,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Authenticate FIRST so the user possesses a valid request.auth.uid for Firestore security rules
+    // Authenticate instantly
     const res = await createUserWithEmailAndPassword(auth, email.trim(), pass);
     const resolvedDisplayName = displayName.trim() || cleanUsername;
     const defaultAvatar = photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanUsername}`;
-
-    await updateProfile(res.user, {
-      displayName: resolvedDisplayName,
-      photoURL: defaultAvatar,
-    }).catch(() => {});
 
     const newProfile: UserProfile = {
       uid: res.user.uid,
@@ -215,12 +250,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: Date.now(),
     };
 
-    try {
-      await setDoc(doc(db, 'users', res.user.uid), newProfile);
-    } catch (dbErr) {
-      console.warn('Initial profile firestore write deferred:', dbErr);
-    }
+    // Update state synchronously for instant UI transition
     setProfile(newProfile);
+    setUser(res.user);
+
+    // Run remote updates in background without blocking the user
+    updateProfile(res.user, {
+      displayName: resolvedDisplayName,
+      photoURL: defaultAvatar,
+    }).catch(() => {});
+
+    setDoc(doc(db, 'users', res.user.uid), newProfile, { merge: true }).catch((dbErr) => {
+      console.warn('Background profile save:', dbErr);
+    });
   };
 
   const loginWithGoogle = async () => {
@@ -229,47 +271,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const res = await signInWithPopup(auth, provider);
     const currentUser = res.user;
 
+    let base = (currentUser.email?.split('@')[0] || currentUser.displayName || 'user')
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '');
+    if (base.length < 3) base = 'user_' + base;
+    const defaultAvatar =
+      currentUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.uid}`;
+
+    const initialProfile: UserProfile = {
+      uid: currentUser.uid,
+      email: currentUser.email || '',
+      displayName: currentUser.displayName || base,
+      username: base,
+      usernameLower: base.toLowerCase(),
+      photoURL: defaultAvatar,
+      bio: 'Hey there! I am using Call CAM.',
+      isOnline: true,
+      lastSeen: Date.now(),
+      createdAt: Date.now(),
+    };
+
+    setProfile(initialProfile);
+    setUser(currentUser);
+
+    // Sync in background
     const userRef = doc(db, 'users', currentUser.uid);
-    const snap = await getDoc(userRef).catch(() => null);
-
-    if (!snap || !snap.exists()) {
-      let base = (currentUser.email?.split('@')[0] || currentUser.displayName || 'user')
-        .toLowerCase()
-        .replace(/[^a-z0-9_]/g, '');
-      if (base.length < 3) base = 'user_' + base;
-      let finalUsername = base;
-      const isAvail = await checkUsernameAvailable(finalUsername);
-      if (!isAvail) {
-        finalUsername = `${base}_${Math.floor(100 + Math.random() * 900)}`;
-      }
-
-      const defaultAvatar =
-        currentUser.photoURL ||
-        `https://api.dicebear.com/7.x/bottts/svg?seed=${finalUsername}`;
-
-      const newProfile: UserProfile = {
-        uid: currentUser.uid,
-        email: currentUser.email || '',
-        displayName: currentUser.displayName || finalUsername,
-        username: finalUsername,
-        usernameLower: finalUsername.toLowerCase(),
-        photoURL: defaultAvatar,
-        bio: 'Hey there! I am using Call CAM.',
-        isOnline: true,
-        lastSeen: Date.now(),
-        createdAt: Date.now(),
-      };
-
-      try {
-        await setDoc(userRef, newProfile);
-      } catch (dbErr) {
-        console.warn('Google sign in firestore write warning:', dbErr);
-      }
-      setProfile(newProfile);
-    } else {
-      setProfile(snap.data() as UserProfile);
-      await updateDoc(userRef, { isOnline: true, lastSeen: Date.now() }).catch(() => {});
-    }
+    getDoc(userRef)
+      .then((snap) => {
+        if (snap.exists()) {
+          setProfile(snap.data() as UserProfile);
+          updateDoc(userRef, { isOnline: true, lastSeen: Date.now() }).catch(() => {});
+        } else {
+          setDoc(userRef, initialProfile, { merge: true }).catch(() => {});
+        }
+      })
+      .catch(() => {});
   };
 
   const loginAsGuest = async (customName?: string) => {
@@ -281,11 +317,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const res = await createUserWithEmailAndPassword(auth, guestEmail, guestPassword);
     const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${guestUsername}`;
-
-    await updateProfile(res.user, {
-      displayName: guestDisplayName,
-      photoURL: defaultAvatar,
-    }).catch(() => {});
 
     const newProfile: UserProfile = {
       uid: res.user.uid,
@@ -300,17 +331,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: Date.now(),
     };
 
-    await setDoc(doc(db, 'users', res.user.uid), newProfile);
     setProfile(newProfile);
+    setUser(res.user);
+
+    updateProfile(res.user, {
+      displayName: guestDisplayName,
+      photoURL: defaultAvatar,
+    }).catch(() => {});
+
+    setDoc(doc(db, 'users', res.user.uid), newProfile, { merge: true }).catch(() => {});
   };
 
   const login = async (email: string, pass: string) => {
-    const res = await signInWithEmailAndPassword(auth, email, pass);
-    const userRef = doc(db, 'users', res.user.uid);
-    const snap = await getDoc(userRef);
-    if (snap.exists()) {
-      await updateDoc(userRef, { isOnline: true, lastSeen: Date.now() });
-    }
+    const res = await signInWithEmailAndPassword(auth, email.trim(), pass);
+    setUser(res.user);
+    // Background presence ping without blocking login
+    updateDoc(doc(db, 'users', res.user.uid), {
+      isOnline: true,
+      lastSeen: Date.now(),
+    }).catch(() => {});
   };
 
   const logout = async () => {

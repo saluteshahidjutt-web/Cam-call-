@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Video, Mail, Lock, Eye, EyeOff, AlertCircle, User, AtSign, Check, X, Sun, Moon, Sparkles } from 'lucide-react';
@@ -44,39 +44,39 @@ export const SignUpView: React.FC<SignUpViewProps> = ({ onSwitchToLogin }) => {
     }
   };
 
+  const checkDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleDisplayNameChange = (val: string) => {
     setDisplayName(val);
-    // Auto-suggest username if user hasn't explicitly customized it yet
     if (!username || username === displayName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')) {
       const suggested = val.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
       if (suggested.length >= 3) {
         setUsername(suggested);
-        handleUsernameCheck(suggested);
+        triggerDebouncedCheck(suggested);
       }
     }
   };
 
-  const handleUsernameCheck = async (clean: string) => {
-    if (!clean) {
-      setUsernameStatus(null);
+  const triggerDebouncedCheck = (clean: string) => {
+    if (checkDebounceRef.current) clearTimeout(checkDebounceRef.current);
+    if (!clean || clean.length < 3) {
+      setUsernameStatus(clean ? 'Too short (min 3 chars)' : null);
       return;
     }
-    if (clean.length < 3) {
-      setUsernameStatus('Too short (min 3 chars)');
-      return;
-    }
-    try {
-      const isFree = await checkUsernameAvailable(clean);
-      setUsernameStatus(isFree ? 'Available' : 'Taken');
-    } catch {
-      setUsernameStatus('Available');
-    }
+    checkDebounceRef.current = setTimeout(async () => {
+      try {
+        const isFree = await checkUsernameAvailable(clean);
+        setUsernameStatus(isFree ? 'Available' : 'Taken');
+      } catch {
+        setUsernameStatus(null);
+      }
+    }, 400);
   };
 
-  const handleUsernameChange = async (val: string) => {
+  const handleUsernameChange = (val: string) => {
     const clean = val.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     setUsername(clean);
-    handleUsernameCheck(clean);
+    triggerDebouncedCheck(clean);
   };
 
   const handleGoogleSignUp = async () => {

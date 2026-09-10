@@ -76,14 +76,18 @@ export const VideoCallScreen: React.FC = () => {
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
     }
   }, [localStream]);
 
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch((err) => {
+        console.warn('Auto-play error on remote video:', err);
+      });
     }
-  }, [remoteStream]);
+  }, [remoteStream, callStatus]);
 
   if (!activeCall || callStatus === 'ended') return null;
 

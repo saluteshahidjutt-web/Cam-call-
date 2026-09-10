@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, ThemeMode } from '../../context/ThemeContext';
+import { PWAInstallButton } from '../pwa/PWAInstallButton';
 import { soundManager } from '../../lib/sound';
 import { getLocalMediaStream, stopMediaStream } from '../../lib/webrtc';
 import {
@@ -264,6 +265,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               </button>
             )}
           </div>
+
+          {/* PWA App Installation Item */}
+          <PWAInstallButton variant="menu-item" />
 
           {/* Calling Guide */}
           <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/10">

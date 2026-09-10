@@ -13,6 +13,7 @@ import { InstantCallModal } from './components/call/InstantCallModal';
 import { ProfileModal } from './components/profile/ProfileModal';
 import { SettingsModal } from './components/profile/SettingsModal';
 import { IosChatBackground } from './components/common/IosChatBackground';
+import { OfflineIndicator } from './components/pwa/OfflineIndicator';
 import { Conversation, UserProfile } from './types';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
@@ -263,6 +264,7 @@ function MainApp() {
       {/* Global Incoming Call Banner & Fullscreen Video Screen */}
       <IncomingCallModal />
       <VideoCallScreen />
+      <OfflineIndicator />
     </div>
   );
 }

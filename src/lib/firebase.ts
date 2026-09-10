@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import rawConfig from '../../firebase-applet-config.json';
 
@@ -41,6 +41,14 @@ const databaseId =
 
 export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
+
+// Enforce permanent local persistence so the user stays logged in until they clear browser cache or log out
+try {
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn('Firebase auth persistence warning:', err);
+  });
+} catch {}
+
 export const db =
   databaseId && databaseId !== '(default)'
     ? getFirestore(app, databaseId)

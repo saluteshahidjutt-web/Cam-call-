@@ -556,8 +556,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // 7. Listen for Callee candidates
+    // 7. Listen for Callee candidates & read existing
     const calleeCandidatesCol = collection(db, 'calls', callId, 'calleeCandidates');
+    getDocs(calleeCandidatesCol).then((existingSnap) => {
+      existingSnap.forEach(async (d) => {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(d.data() as IceCandidatePayload));
+        } catch {}
+      });
+    }).catch(() => {});
+
     const unsubCandidates = onSnapshot(calleeCandidatesCol, (snapshot) => {
       snapshot.docChanges().forEach(async (change) => {
         if (change.type === 'added') {
@@ -585,45 +593,82 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     soundManager.stopRingtone();
     setError(null);
 
-    let callId = rawInput.trim();
-    if (callId.includes('#call=')) {
-      callId = callId.split('#call=')[1].split('&')[0];
-    } else if (callId.includes('?call=')) {
-      callId = callId.split('?call=')[1].split('&')[0];
+    let cleanInput = rawInput.trim();
+    if (cleanInput.includes('#call=')) {
+      cleanInput = cleanInput.split('#call=')[1].split('&')[0];
+    } else if (cleanInput.includes('?call=')) {
+      cleanInput = cleanInput.split('?call=')[1].split('&')[0];
+    } else if (cleanInput.includes('/call/')) {
+      cleanInput = cleanInput.split('/call/')[1].split('?')[0].split('#')[0];
     }
 
-    if (!callId) {
+    if (!cleanInput) {
       throw new Error('Please enter a valid call link or room code.');
     }
 
-    // 1. Fetch Call doc by ID
-    let callDocRef = doc(db, 'calls', callId);
-    let callSnap = await getDoc(callDocRef);
+    // 1. Resolve Call Session Doc
+    let callDocRef: ReturnType<typeof doc> | null = null;
+    let callData: CallSession | null = null;
 
-    // If not found by doc ID, attempt finding by 6-character roomCode
-    if (!callSnap.exists()) {
-      const q = query(
-        collection(db, 'calls'),
-        where('roomCode', '==', callId.toUpperCase())
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        // Pick the latest non-ended room with this code
-        const matchingDoc = snap.docs.find((d) => d.data().status !== 'ended') || snap.docs[0];
-        callDocRef = matchingDoc.ref;
-        callSnap = matchingDoc;
-        callId = callSnap.id;
+    // Check if user entered a 6-character room code (e.g. 8A3F21)
+    if (cleanInput.length <= 8) {
+      try {
+        const q = query(
+          collection(db, 'calls'),
+          where('roomCode', '==', cleanInput.toUpperCase())
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const matchingDoc = snap.docs.find((d) => d.data().status !== 'ended') || snap.docs[0];
+          callDocRef = matchingDoc.ref;
+          callData = { id: matchingDoc.id, ...matchingDoc.data() } as CallSession;
+        }
+      } catch (err) {
+        console.warn('Query by roomCode failed:', err);
       }
     }
 
-    if (!callSnap.exists()) {
-      throw new Error('Call session not found or link has expired.');
+    // If not resolved yet, attempt by direct document ID
+    if (!callData) {
+      try {
+        const directDocRef = doc(db, 'calls', cleanInput);
+        const directSnap = await getDoc(directDocRef);
+        if (directSnap.exists()) {
+          callDocRef = directDocRef;
+          callData = { id: directSnap.id, ...directSnap.data() } as CallSession;
+        }
+      } catch (err) {
+        console.warn('Direct doc lookup failed:', err);
+      }
     }
-    const callData = { id: callSnap.id, ...callSnap.data() } as CallSession;
+
+    // If still not found, try fallback search by roomCode case-insensitively
+    if (!callData) {
+      try {
+        const q = query(
+          collection(db, 'calls'),
+          where('roomCode', '==', cleanInput.toUpperCase())
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const matchingDoc = snap.docs[0];
+          callDocRef = matchingDoc.ref;
+          callData = { id: matchingDoc.id, ...matchingDoc.data() } as CallSession;
+        }
+      } catch (err) {
+        console.warn('Fallback roomCode search failed:', err);
+      }
+    }
+
+    if (!callData || !callDocRef) {
+      throw new Error('Call session not found. Please verify the code or generate a new link.');
+    }
+
     if (callData.status === 'ended') {
       throw new Error('This call has already ended.');
     }
 
+    const callId = callData.id;
     activeCallDocRef.current = callId;
     setActiveCall(callData);
     setCallStatus('connected');
@@ -660,6 +705,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       event.streams[0]?.getTracks().forEach((track) => {
         remoteMediaStream.addTrack(track);
       });
+      if (event.track) {
+        remoteMediaStream.addTrack(event.track);
+      }
+      setRemoteStream(new MediaStream(remoteMediaStream.getTracks()));
     };
 
     pc.oniceconnectionstatechange = () => {
@@ -700,12 +749,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 7. Read existing caller candidates & listen
     const callerCandidatesCol = collection(db, 'calls', callId, 'callerCandidates');
-    const existingCandidatesSnap = await getDocs(callerCandidatesCol);
-    existingCandidatesSnap.forEach(async (d) => {
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(d.data() as IceCandidatePayload));
-      } catch {}
-    });
+    getDocs(callerCandidatesCol).then((existingCandidatesSnap) => {
+      existingCandidatesSnap.forEach(async (d) => {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(d.data() as IceCandidatePayload));
+        } catch {}
+      });
+    }).catch(() => {});
 
     const unsubCallerCandidates = onSnapshot(callerCandidatesCol, (snapshot) => {
       snapshot.docChanges().forEach(async (change) => {

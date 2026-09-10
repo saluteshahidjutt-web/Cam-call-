@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { PWAInstallButton } from '../pwa/PWAInstallButton';
 import { Video, Mail, Lock, Eye, EyeOff, AlertCircle, Sun, Moon, Sparkles } from 'lucide-react';
 
 interface LoginViewProps {
@@ -272,6 +273,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToSignUp }) => {
                 Create Account
               </button>
             </p>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-black/5 dark:border-white/5">
+            <PWAInstallButton variant="banner" />
           </div>
         </div>
       </div>
